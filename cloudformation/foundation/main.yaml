@@ -48,16 +48,16 @@ Mappings:
   EnvironmentToCidr:
     integration:
       CidrBlock: "10.10.0.0/16"
-      SubnetPublicCidrBlocks: "10.1.1.0/24,10.1.2.0/24"
-      SubnetPrivateCidrBlocks: "10.1.11.0/24,10.1.12.0/24"
+      SubnetPublicCidrBlocks: "10.10.1.0/24,10.10.2.0/24"
+      SubnetPrivateCidrBlocks: "10.10.11.0/24,10.10.12.0/24"
     staging:
       CidrBlock: "10.20.0.0/16"
-      SubnetPublicCidrBlocks: "10.2.1.0/24,10.2.2.0/24"
-      SubnetPrivateCidrBlocks: "10.2.11.0/24,10.2.12.0/24"
+      SubnetPublicCidrBlocks: "10.20.1.0/24,10.20.2.0/24"
+      SubnetPrivateCidrBlocks: "10.20.11.0/24,10.20.12.0/24"
     production:
       CidrBlock: "10.30.0.0/16"
-      SubnetPublicCidrBlocks: "10.3.1.0/24,10.3.2.0/24"
-      SubnetPrivateCidrBlocks: "10.3.11.0/24,10.3.12.0/24"
+      SubnetPublicCidrBlocks: "10.30.1.0/24,10.30.2.0/24"
+      SubnetPrivateCidrBlocks: "10.30.11.0/24,10.30.12.0/24"
 
 Resources:
   Vpc:
