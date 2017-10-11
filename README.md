@@ -58,10 +58,11 @@ installation is:
 * Run `make create-compute ENV=production`
 * Check the outputs of the above with `make outputs-foundation ENV=<environment>`
 * Check the status of the above with `make status-foundation ENV=<environment>`
-* Run `make create-build REPO=<repo_name> REPO_BRANCH=<branch> CONTAINER_PORT=<port> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
+* Run `make create-build REPO=<repo_name> REPO_BRANCH=<branch> CONTAINER_PORT=<port> HEALTH_CHECK_PATH=<path> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
   * REPO is the repo that hangs off buildit organization (e.g "twig-api")
   * REPO_BRANCH is the branch name for the repo - MUST NOT CONTAIN SLASHES!
   * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
+  * HEALTH_CHECK_PATH is the path that is checked by the target group to determine health of the container (e.g. `/ping`)
   * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
   * (optional) PREFIX is what goes in front of the URI of the application.  Defaults to OWNER but for the "real" riglet should be set to blank (e.g. `PREFIX=`)
 

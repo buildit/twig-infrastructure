@@ -24,6 +24,11 @@ Parameters:
     Description: Public Domain Name for sites and services created by this stack.
     Type: String
 
+  HealthCheckPath:
+    Description: HTTP request path used for health checks against related container.
+    Type: String
+    Default: /
+
   # ParameterStoreNamespace:
   #   Description: Namespace in parameter store from which configuration values will be taken.
   #   Type: String
@@ -72,7 +77,7 @@ Resources:
       Matcher:
         HttpCode: 200-301   # Account for HTTPS redirect
       HealthCheckIntervalSeconds: 10
-      HealthCheckPath: /ping
+      HealthCheckPath: !Ref HealthCheckPath
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 5
       HealthyThresholdCount: 2

@@ -129,6 +129,7 @@ create-app: deps upload-app
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Repository,ParameterValue=${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
+			"ParameterKey=TargetGroupHealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
@@ -212,6 +213,7 @@ update-app: deps upload-app
 			"ParameterKey=Repository,ParameterValue=${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
+			"ParameterKey=TargetGroupHealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \

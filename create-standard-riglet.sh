@@ -18,6 +18,6 @@ then
   echo "Y" | make create-compute ENV=staging && \
   echo "Y" | make create-foundation ENV=production && \
   echo "Y" | make create-compute ENV=production && \
-  echo "Y" | make create-build REPO=twig-api REPO_BRANCH=${BRANCH} CONTAINER_PORT=3000 LISTENER_RULE_PRIORITY=100
-  echo "Y" | make create-build REPO=twig REPO_BRANCH=${BRANCH} CONTAINER_PORT=80 LISTENER_RULE_PRIORITY=200
+  echo "Y" | make create-build REPO=twig-api REPO_BRANCH=${BRANCH} CONTAINER_PORT=3000 HEALTH_CHECK_PATH='/ping' LISTENER_RULE_PRIORITY=100 && \
+  echo "Y" | make create-build REPO=twig REPO_BRANCH=${BRANCH} CONTAINER_PORT=80 HEALTH_CHECK_PATH='/' LISTENER_RULE_PRIORITY=200
 fi
