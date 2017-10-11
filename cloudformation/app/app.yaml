@@ -78,7 +78,7 @@ Resources:
       Port: !Ref ContainerPort
       Protocol: HTTP
       Matcher:
-        HttpCode: 200-299
+        HttpCode: 200-301   # Account for HTTPS redirect
       HealthCheckIntervalSeconds: 10
       HealthCheckPath: /ping
       HealthCheckProtocol: HTTP
@@ -215,6 +215,11 @@ Resources:
           ContainerPort: !Ref ContainerPort
           TargetGroupArn: !Ref TargetGroup
 
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Ref AWS::StackName
+      RetentionInDays: 60
 
   TaskDefinitionServiceRole:
     Type: AWS::IAM::Role
@@ -255,6 +260,12 @@ Resources:
           PortMappings:
             - ContainerPort: !Ref ContainerPort
               HostPort: 0
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref AWS::StackName
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: !Ref ApplicationName
           Environment:
             - Name: Tag
               Value: !Ref Tag
