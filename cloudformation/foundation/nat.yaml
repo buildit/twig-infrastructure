@@ -14,8 +14,6 @@ Parameters:
 
 Resources:
 
-  ##
-  # NAT for private subnet A
   NatEipA:
     Type: AWS::EC2::EIP
 
@@ -36,8 +34,6 @@ Resources:
       RouteTableId:
         Fn::ImportValue: !Sub "${FoundationStackName}--RouteTablePrivateA"
 
-  ##
-  # NAT for private subnet B
   NatEipB:
     Type: AWS::EC2::EIP
 

@@ -62,14 +62,6 @@ Conditions:
   - !Equals [ !Ref Prefix, "" ]
 
 Resources:
-  # LoadBalancer:
-  #   Type: AWS::CloudFormation::Stack
-  #   Properties:
-  #     TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/load-balancer.yaml
-  #     Parameters:
-  #       FoundationStackName: !Ref FoundationStackName
-  #       DnsHostedZoneName: !Ref PublicDomainName
-  #       DnsSubdomainName: !Sub ${Prefix}${Environment}-${ApplicationName}
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -175,18 +167,6 @@ Resources:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
 
-  # ECSService:
-  #   Type: AWS::CloudFormation::Stack
-  #   Properties:
-  #     TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/service.yaml
-  #     Parameters:
-  #       Tag: !Sub "${Environment}"
-  #       TaskDesiredCount: 0
-  #       Cluster: !Ref Cluster
-  #       TargetGroup: !GetAtt LoadBalancer.Outputs.TargetGroup
-  #       Repository: !Ref Repository
-  #       ContainerPort: !Ref ContainerPort
-  #       ParameterStoreNamespace: !Ref ParameterStoreNamespace
   ECSServiceRole:
     Type: AWS::IAM::Role
     Properties:
