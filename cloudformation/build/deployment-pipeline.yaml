@@ -29,6 +29,14 @@ Parameters:
     Type: String
     Default: buildit
 
+  CodeBuildComputeType:
+    Type: String
+    Default: BUILD_GENERAL1_SMALL
+    AllowedValues:
+      - BUILD_GENERAL1_SMALL
+      - BUILD_GENERAL1_MEDIUM
+      - BUILD_GENERAL1_LARGE
+
   ApplicationName:
     Type: String
 
@@ -187,7 +195,7 @@ Resources:
       Source:
         Type: "CODEPIPELINE"
       Environment:
-        ComputeType: "BUILD_GENERAL1_SMALL"
+        ComputeType: !Ref CodeBuildComputeType
         Image: "aws/codebuild/docker:1.12.1"
         # Image: "aws/codebuild/java:openjdk-8"
         # Image: "aws/codebuild/eb-java-8-amazonlinux-64:2.4.3"
