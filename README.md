@@ -1,4 +1,4 @@
-# AWS The Rig
+# Twig AWS Riglet
 
 This setup will create a CloudFormation, AWS CodePipeline/CodeBuild/CodeDeploy powered Rig on AWS.
 
@@ -98,7 +98,7 @@ To delete everything, in order:
 ## Environment specifics
 For simplicity's sake, the templates don't currently allow a lot of flexibility in network CIDR ranges.
 The assumption at this point is that these VPCs are self-contained and "sealed off" and thus don't need 
-to communicate with each other, thus no peering is needed.
+to communicate with each other, thus no peering is needed and CIDR overlaps are fine.
 
 Obviously, the templates can be updated if necessary.
 
@@ -116,20 +116,25 @@ Obviously, the templates can be updated if necessary.
 | twig        | 80            | 200 
 
 ## Scaling
-There are a few scaling knobs that can be twisted.  Reasonable defaults are established in the templates,
-but the values can be updated in a running riglet later.
+There are a few scaling knobs that can be twisted.  Minimalistic defaults are established in the templates,
+but the values can (and should) be updated in specific running riglets later.
+
+For example, production should probably be scaled up, at least horizontally, if only for high availability, 
+so increasing the number of cluster instances to at least 2 (and arguably 4) is probably a good idea, as well 
+as running a number of ECS Tasks for each twig-api and twig (web).  ECS automatically distributes the Tasks
+to the ECS cluster instances.
 
 To make changes in the CloudFormation console, find the appropriate stack, select it, select 
 "update", and specify "use current template".  On the parameters page make appropriate changes and 
 submit.
 
-### Application Scaling Parameters  
- 
-| Parameter             | Scaling Style | Stack                       | Parameter  
-| :---                  | :---          | :---                        | :---
-| Size of ECS Cluster   | Horizontal    | compute-ecs | ClusterSize/ClusterMaxSize
-| Size of ECS Hosts     | Vertical      | compute-ecs | InstanceType  |
-| Number of Tasks       | Horizontal    | app (once created by build)   | TaskDesiredCount
+### Application Scaling Parameters
+
+| Parameter                    | Scaling Style | Stack                      | Parameter  
+| :---                         | :---          | :---                       | :---
+| # of ECS cluster instances   | Horizontal    | compute-ecs                | ClusterSize/ClusterMaxSize
+| Size of ECS Hosts            | Vertical      | compute-ecs                | InstanceType    |
+| Number of Tasks              | Horizontal    | app (once created by build)| TaskDesiredCount
 
 
 ### Database Scaling Parameters
