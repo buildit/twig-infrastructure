@@ -29,8 +29,13 @@ deps:
 
 	@echo "Create Compute S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}"  2>/dev/null || \
-		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}  --region "${REGION}" # Foundation configs
+		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}  --region "${REGION}" # Compute configs
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+
+	@echo "Create DB S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.db-couch.${ENV}"
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-couch.${ENV}" --region "${REGION}"  2>/dev/null || \
+		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.db-couch.${ENV}  --region "${REGION}" # DB configs
+	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-couch.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
 	@echo "Create App S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --region "${REGION}" 2>/dev/null || \
@@ -46,6 +51,7 @@ deps:
 delete-deps:
 	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
 	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
+	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.db-couch.${ENV}
 	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
 	# @aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
 	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
@@ -87,8 +93,27 @@ create-compute: upload-compute
 			"Key=Project,Value=${PROJECT}"
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}
 
+## Create new CF db stack
+create-db: upload-db
+	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-couch" \
+                --region ${REGION} \
+                --disable-rollback \
+		--template-body "file://cloudformation/db-couch/main.yaml" \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameters \
+			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
+			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
+			"ParameterKey=InstanceType,ParameterValue=t2.small" \
+			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
+			"ParameterKey=Environment,ParameterValue=${ENV}" \
+		--tags \
+			"Key=Owner,Value=${OWNER}" \
+			"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-couch" --region ${REGION}
+
 ## Create new CF environment stacks
-create-environment: create-foundation create-compute
+create-environment: create-foundation create-compute create-db
 
 ## Create new CF Build pipeline stack
 create-build: upload-build
@@ -150,7 +175,6 @@ update-foundation: upload-templates
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Region,ParameterValue=${REGION}" \
-			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
@@ -172,8 +196,27 @@ update-compute: upload-compute
 			"Key=Project,Value=${PROJECT}"
 	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}
 
+## Create new CF db stack
+update-db: upload-db
+	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-couch" \
+                --region ${REGION} \
+		--template-body "file://cloudformation/db-couch/main.yaml" \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameters \
+			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
+			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
+			"ParameterKey=InstanceType,ParameterValue=t2.small" \
+			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
+			"ParameterKey=Environment,ParameterValue=${ENV}" \
+		--tags \
+			"Key=Owner,Value=${OWNER}" \
+			"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-couch" --region ${REGION}
+
+
 ## Update CF environment stacks
-update-environment: update-foundation update-compute
+update-environment: update-foundation update-compute update-db
 
 ## Update existing Build Pipeline CF Stack
 update-build: upload-build
@@ -242,6 +285,13 @@ status-compute:
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 		--query "Stacks[][StackStatus] | []" | jq
 
+## Print DB stack's status
+status-db:
+	@aws cloudformation describe-stacks \
+                --region ${REGION} \
+		--stack-name "${OWNER}-${PROJECT}-${ENV}-db-couch" \
+		--query "Stacks[][StackStatus] | []" | jq
+
 ## Print Compute stack's outputs
 outputs-compute:
 	@aws cloudformation describe-stacks \
@@ -249,11 +299,18 @@ outputs-compute:
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 		--query "Stacks[][Outputs] | []" | jq
 
+## Print Compute stack's outputs
+outputs-db:
+	@aws cloudformation describe-stacks \
+                --region ${REGION} \
+		--stack-name "${OWNER}-${PROJECT}-${ENV}-db-couch" \
+		--query "Stacks[][Outputs] | []" | jq
+
 ## Print Environment stacks' status
-status-environment: status-foundation status-compute
+status-environment: status-foundation status-compute outputs-db
 
 ## Print Environment stacks' output
-outputs-environment: outputs-foundation outputs-compute
+outputs-environment: outputs-foundation outputs-compute outputs-db
 
 ## Print build pipeline stack's status
 status-build:
@@ -299,8 +356,15 @@ delete-compute:
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}; \
 	fi
 
+## Deletes the DB CF stack
+delete-db:
+	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} DB Stack?"; then \
+		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-db-couch"; \
+		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-couch" --region ${REGION}; \
+	fi
+
 ## Deletes the Environment CF stacks
-delete-environment: delete-compute delete-foundation
+delete-environment: delete-db delete-compute delete-foundation
 
 ## Deletes the build pipeline CF stack
 delete-build:
@@ -350,6 +414,10 @@ upload-app-deployment:
 upload-compute:
 	@aws s3 cp --recursive cloudformation/compute-ecs/ s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}/templates/
 
+## Upload DB Templates
+upload-db:
+	@aws s3 cp --recursive cloudformation/db-couch/ s3://rig.${OWNER}.${PROJECT}.${REGION}.db-couch.${ENV}/templates/
+
 ## Upload Build CF Templates
 upload-build:
 	@aws s3 cp --recursive cloudformation/build/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build/templates/
@@ -384,7 +452,7 @@ help:
 		'/^##/ { sub(/^[#[:blank:]]*/, "", $$0); doc_h=$$0; doc=""; skip=0; next } \
 		 skip  { next } \
 		 /^#/  { doc=doc "\n" substr($$0, 2); next } \
-		 /:/   { sub(/:.*/, "", $$0); printf "\033[34m%-30s\033[0m\033[1m%s\033[0m %s\n\n", $$0, doc_h, doc; skip=1 }' \
+		 /:/   { sub(/:.*/, "", $$0); printf "\033[33m\033[01m%-30s\033[0m\033[1m%s\033[0m %s\n\n", $$0, doc_h, doc; skip=1 }' \
 		${MAKEFILE_LIST}
 
 

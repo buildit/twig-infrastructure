@@ -31,6 +31,11 @@ Parameters:
     Description: Comma-delimited list of two CIDR blocks for public subnets
     Type: CommaDelimitedList
 
+  InternalHostedZoneName:
+    Description: The DNS name to use for the internally-resolved zone associated with this VPC.
+    Type: String
+    Default:  twig.internal.
+
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -48,7 +53,7 @@ Resources:
     Properties:
       HostedZoneConfig:
         Comment: !Sub "${FoundationStackName} VPC Internal DNS"
-      Name: internal
+      Name: !Ref InternalHostedZoneName
       VPCs:
         - VPCId:
             Ref: VPC
@@ -264,3 +269,10 @@ Outputs:
       Name: !Sub "${FoundationStackName}--VpcId"
     Value:
       Ref: VPC
+
+  InternalHostedZoneName:
+    Description: The DNS Name for the internally-resolved DNS.
+    Export:
+      Name: !Sub "${FoundationStackName}--InternalHostedZoneName"
+    Value:
+      Ref: InternalHostedZoneName
