@@ -254,6 +254,18 @@ Resources:
           Environment:
             - Name: Tag
               Value: !Ref Tag
+            - Name: TWIG_API_LDAP_URL
+              Value: ldap://todo
+            - Name: TWIG_API_LOG_CONSOLE
+              Value: true
+            - Name: TWIG_API_LOG_FILE
+              Value: true
+            - Name: TWIG_API_LOG_LEVEL
+              Value: info
+            - Name: TWIG_API_TENANT
+              Value: staging
+            - Name: TWIG_API_DB_URL
+              Value: http://couchdb.twig.internal:5984
 
 Outputs:
   ApplicationUrl:

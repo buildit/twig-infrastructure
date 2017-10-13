@@ -1,0 +1,143 @@
+---
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Database subnets and instance.
+
+Parameters:
+
+  FoundationStackName:
+    Description: Foundation Stack Name
+    Type: String
+
+  ComputeStackName:
+    Description: Compute Stack Name
+    Type: String
+
+  PublicDomainName:
+    Description: Public Domain Name for sites and services created by this stack.
+    Type: String
+
+  InstanceType:
+    Type: String
+    Default: t2.small
+    AllowedValues:
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+
+  SshKeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+
+  Environment:
+    Description: Stack environment
+    Type: String
+
+Mappings:
+  EnvironmentToCidr:
+    integration:
+      DbSubnetCidrBlocks: ["10.10.100.0/24","10.10.110.0/24"]
+    staging:
+      DbSubnetCidrBlocks: ["10.20.100.0/24","10.20.110.0/24"]
+    production:
+      DbSubnetCidrBlocks: ["10.30.100.0/24","10.30.110.0/24"]
+
+Resources:
+  AppEnvDns:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--InternalDns"
+      Comment: DNS for CouchDb.
+      RecordSets:
+      - Name: !Join
+          - '.'
+          - - "couchdb"
+            - Fn::ImportValue: !Sub "${FoundationStackName}--InternalHostedZoneName"
+        Type: CNAME
+        TTL: '300'
+        ResourceRecords:
+        - !GetAtt CouchEc2Instance.PrivateDnsName
+
+  SecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Sub ${AWS::StackName}-app-couchdb
+      SecurityGroupIngress:
+        - SourceSecurityGroupId:
+            Fn::ImportValue: !Sub "${ComputeStackName}--AppSecurityGroup"
+          IpProtocol: TCP
+          FromPort: 5984
+          ToPort: 5984
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+
+  CouchEc2Instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: ami-bc1e34aa
+      KeyName: !Ref SshKeyName
+      InstanceType: !Ref InstanceType
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}--CouchDb"
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: "false"
+          SubnetId: !Ref DbSubnetPrivateA
+          DeviceIndex: "0"
+          GroupSet:
+            - Ref: "SecurityGroup"
+
+  DbSubnetPrivateA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+      CidrBlock: !Select [ 0, !FindInMap [ EnvironmentToCidr, !Ref Environment, DbSubnetCidrBlocks ] ]
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}--DbSubnetPrivateA"
+
+  DbSubnetPrivateB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+      CidrBlock: !Select [ 1, !FindInMap [ EnvironmentToCidr, !Ref Environment, DbSubnetCidrBlocks ] ]
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}--DbSubnetPrivateB"
+
+  DbSubnetPrivateARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: DbSubnetPrivateA
+      RouteTableId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--RouteTablePrivateA"
+
+  DbSubnetPrivateBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: DbSubnetPrivateB
+      RouteTableId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--RouteTablePrivateB"
+
+Outputs:
+
+  DbSubnetPrivateA:
+    Description: The ID of the newly created Private Subnet in zone A
+    Export:
+      Name: !Sub "${AWS::StackName}--DbSubnetPrivateA"
+    Value:
+      Ref: DbSubnetPrivateA
+
+  DbSubnetPrivateB:
+    Description: The ID of the newly created Private Subnet in zone B
+    Export:
+      Name: !Sub "${AWS::StackName}--DbSubnetPrivateB"
+    Value:
+      Ref: DbSubnetPrivateB

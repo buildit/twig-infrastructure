@@ -90,7 +90,6 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
-        Environment: !Ref Environment
         FoundationStackName: !Sub ${AWS::StackName}
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/nat.yaml
       TimeoutInMinutes: 60
