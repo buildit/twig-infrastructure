@@ -42,6 +42,14 @@ Mappings:
     production:
       DbSubnetCidrBlocks: ["10.30.100.0/24","10.30.110.0/24"]
 
+  AWSRegionToCouchAMI:
+    us-east-1:
+      default: ami-2fe22855
+      integration: ami-8003d5fa
+      staging: ami-2fe22855
+      production: ami-2fe22855
+
+
 Resources:
   AppEnvDns:
     Type: AWS::Route53::RecordSetGroup
@@ -75,7 +83,7 @@ Resources:
   CouchEc2Instance:
     Type: "AWS::EC2::Instance"
     Properties:
-      ImageId: ami-bc1e34aa
+      ImageId: !FindInMap [ AWSRegionToCouchAMI, !Ref "AWS::Region", !Ref Environment ]
       KeyName: !Ref SshKeyName
       InstanceType: !Ref InstanceType
       Tags:
