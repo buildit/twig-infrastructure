@@ -7,6 +7,7 @@ export PROFILE ?= default
 export PROJECT ?= projectname
 export REGION ?= us-east-1
 export PREFIX ?= ${OWNER}
+export CERT_ARN ?= need-to-set-arn
 
 export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
@@ -71,6 +72,7 @@ create-foundation: deps upload-templates
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Region,ParameterValue=${REGION}" \
+			"ParameterKey=ElbCertificateArn,ParameterValue=${CERT_ARN}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
@@ -175,6 +177,7 @@ update-foundation: upload-templates
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Region,ParameterValue=${REGION}" \
+			"ParameterKey=ElbCertificateArn,ParameterValue=${CERT_ARN}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
