@@ -7,6 +7,9 @@ Parameters:
   FoundationStackName:
     Description: Foundation stack name
     Type: String
+  CertificateArn:
+    Description: ARN of certificate to attach to ALB
+    Type: String
 
 Resources:
   SecurityGroup:
@@ -39,7 +42,7 @@ Resources:
     Properties:
       LoadBalancerArn: !Ref LoadBalancer
       Certificates:
-        - CertificateArn: arn:aws:acm:us-east-1:006393696278:certificate/0663e927-e990-4157-aef9-7dea87faa6ec
+        - CertificateArn: !Ref CertificateArn
       Port: 443
       Protocol: HTTPS
       DefaultActions:
