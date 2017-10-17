@@ -44,10 +44,10 @@ Mappings:
 
   AWSRegionToCouchAMI:
     us-east-1:
-      default: ami-2fe22855
-      integration: ami-8003d5fa
-      staging: ami-2fe22855
-      production: ami-2fe22855
+      default: ami-e687579c
+      integration: ami-e687579c
+      staging: ami-e687579c
+      production: ami-e687579c
 
 
 Resources:
