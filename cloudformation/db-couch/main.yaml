@@ -48,6 +48,11 @@ Mappings:
       integration: ami-e687579c
       staging: ami-e687579c
       production: ami-e687579c
+    us-west-2:
+      default: ami-54e1222c
+      integration: ami-54e1222c
+      staging: ami-54e1222c
+      production: ami-54e1222c
 
 
 Resources:
@@ -95,6 +100,12 @@ Resources:
           DeviceIndex: "0"
           GroupSet:
             - Ref: "SecurityGroup"
+#      UserData:
+#        Fn::Base64: !Sub |
+#          #!/bin/bash
+#          echo
+#          ec2ifup eth1
+#          service httpd start
 
   DbSubnetPrivateA:
     Type: AWS::EC2::Subnet
