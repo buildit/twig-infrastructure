@@ -63,10 +63,10 @@ installation is:
 * Run `make create-db ENV=integration`
 * Run `make create-foundation ENV=staging`
 * Run `make create-compute ENV=staging`
-* Run `make create-db ENV=integration`
+* Run `make create-db ENV=staging`
 * Run `make create-foundation ENV=production`
 * Run `make create-compute ENV=production`
-* Run `make create-db ENV=integration`
+* Run `make create-db ENV=production`
 * Run `make create-build REPO=<repo_name> REPO_BRANCH=<branch> CONTAINER_PORT=<port> HEALTH_CHECK_PATH=<path> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
   * REPO is the repo that hangs off buildit organization (e.g "twig-api")
   * REPO_BRANCH is the branch name for the repo - MUST NOT CONTAIN SLASHES!
