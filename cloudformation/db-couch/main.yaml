@@ -85,12 +85,56 @@ Resources:
       VpcId:
         Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
 
+  CouchDbBackupBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+
+  CouchEc2Role:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "root"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action: ["s3:Put*", "s3:List*"]
+                Resource: [!Sub "${CouchDbBackupBucket.Arn}", !Sub "${CouchDbBackupBucket.Arn}/*"]
+
+  CouchEc2RoleInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref CouchEc2Role
+
+  # This instance and backup approach works because the AMI is assumed to be
+  # a CouchDB AMI from the prior Twig riglet, with AWS CLI installed, too.
+  # TODO:  create everything "from scratch" in the UserData script, including
+  # restore from S3 (optional).
   CouchEc2Instance:
     Type: "AWS::EC2::Instance"
     Properties:
       ImageId: !FindInMap [ AWSRegionToCouchAMI, !Ref "AWS::Region", !Ref Environment ]
       KeyName: !Ref SshKeyName
       InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref CouchEc2RoleInstanceProfile
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}--CouchDb"
@@ -100,12 +144,11 @@ Resources:
           DeviceIndex: "0"
           GroupSet:
             - Ref: "SecurityGroup"
-#      UserData:
-#        Fn::Base64: !Sub |
-#          #!/bin/bash
-#          echo
-#          ec2ifup eth1
-#          service httpd start
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            echo "0  0  3  *  * root  aws s3 sync /usr/local/var/lib/couchdb/ s3://${CouchDbBackupBucket} --region us-west-2 --delete" > /etc/cron.d/couchdb-backup
 
   DbSubnetPrivateA:
     Type: AWS::EC2::Subnet
@@ -160,3 +203,8 @@ Outputs:
       Name: !Sub "${AWS::StackName}--DbSubnetPrivateB"
     Value:
       Ref: DbSubnetPrivateB
+
+  CouchDbBackupBucket:
+    Description: The bucket created for backups of CouchDb files.
+    Value:
+      Ref: CouchDbBackupBucket
