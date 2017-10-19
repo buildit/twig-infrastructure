@@ -265,6 +265,8 @@ Resources:
               Value: info
             - Name: TWIG_API_TENANT
               Value: ''
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
             - Name: TWIG_API_DB_URL
               Value: !Join
                 - ''
