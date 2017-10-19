@@ -152,6 +152,7 @@ create-app: deps upload-app
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+			"ParameterKey=DbStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-db-couch" \
 			"ParameterKey=InfraDevBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Repository,ParameterValue=${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo" \
@@ -254,6 +255,7 @@ update-app: deps upload-app
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+			"ParameterKey=DbStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-db-couch" \
 			"ParameterKey=InfraDevBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Repository,ParameterValue=${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo" \
