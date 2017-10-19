@@ -22,6 +22,7 @@ PROFILE = <AWS Profile Name>
 PROJECT = <Project Name>
 REGION = <AWS Region>
 REPO_TOKEN = <Github OAuth or Personal Access Token>
+CERT_ARN = <unique ID of TLS certificate defined in AWS Certificate manager>
 ```
 
 Or also done interactively through `make .make`.
@@ -34,8 +35,9 @@ KEY_NAME = buildit-twig-ssh-keypair-us-east-1 (example: actual is dependent upon
 OWNER = buildit
 PROFILE = default (or whatever your configured profile is named)
 PROJECT = twig
-REGION = us-east-1
+REGION = us-west-2
 REPO_TOKEN = <ask a team member>
+CERT_ARN = <unique ID of buildit.tools TLS certificate in us-west-2>
 ```
 
 Confirm everything is valid with `make check-env`
