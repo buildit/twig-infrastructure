@@ -46,8 +46,8 @@ Confirm everything is valid with `make check-env`
 There are a couple of scripts that automate the detailed steps covered further down.  They hide the
 details, which is both a good and bad thing.
 
-* `./create-standard-riglet.sh` to create a full riglet with standard environments (integration/staging/production).
-* `./delete-standard-riglet.sh` to delete it all.
+* `./create-standard-riglet.sh [branch name]` to create a full riglet with standard environments (integration/staging/production).
+* `./delete-standard-riglet.sh [branch name]` to delete it all.
 
 #### Individual Makefile Targets
 If you're not feeling particularly lucky, or you want to understand how things are assembled, or 

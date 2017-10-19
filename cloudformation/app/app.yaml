@@ -16,6 +16,10 @@ Parameters:
     Description: Compute stack name
     Type: String
 
+  DbStackName:
+    Description: Database stack name
+    Type: String
+
   InfraDevBucket:
     Description: App S3 Bucket
     Type: String
@@ -237,9 +241,6 @@ Resources:
       ContainerDefinitions:
         - Name: !Ref ApplicationName
           Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}:${Tag}
-          # Command:
-          #   - /bin/sh
-          #   - ./run-in-aws.sh #special bootstrapping startup that pulls secrets from SSM parameter store
           Essential: true
           Memory: 256
           PortMappings:
@@ -263,11 +264,15 @@ Resources:
             - Name: TWIG_API_LOG_LEVEL
               Value: info
             - Name: TWIG_API_TENANT
-              Value: !Ref Environment
-            - Name: TWIG_API_DB_URL
-              Value: http://couchdb.twig.internal:5984
+              Value: ''
             - Name: ENVIRONMENT
               Value: !Ref Environment
+            - Name: TWIG_API_DB_URL
+              Value: !Join
+                - ''
+                - - "http://"
+                  - Fn::ImportValue: !Sub "${DbStackName}--CouchDbDnsName"
+                  - ':5984'
 
 Outputs:
   ApplicationUrl:
