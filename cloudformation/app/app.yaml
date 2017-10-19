@@ -263,7 +263,7 @@ Resources:
             - Name: TWIG_API_LOG_LEVEL
               Value: info
             - Name: TWIG_API_TENANT
-              Value: staging
+              Value: !Ref Environment
             - Name: TWIG_API_DB_URL
               Value: http://couchdb.twig.internal:5984
             - Name: ENVIRONMENT

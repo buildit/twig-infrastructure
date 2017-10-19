@@ -7,6 +7,7 @@ export PROFILE ?= default
 export PROJECT ?= projectname
 export REGION ?= us-east-1
 export PREFIX ?= ${OWNER}
+export CERT_ARN ?= need-to-set-arn
 
 export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
@@ -71,6 +72,7 @@ create-foundation: deps upload-templates
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Region,ParameterValue=${REGION}" \
+			"ParameterKey=ElbCertificateArn,ParameterValue=${CERT_ARN}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
@@ -175,6 +177,7 @@ update-foundation: upload-templates
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Region,ParameterValue=${REGION}" \
+			"ParameterKey=ElbCertificateArn,ParameterValue=${CERT_ARN}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
@@ -307,7 +310,7 @@ outputs-db:
 		--query "Stacks[][Outputs] | []" | jq
 
 ## Print Environment stacks' status
-status-environment: status-foundation status-compute outputs-db
+status-environment: status-foundation status-compute status-db
 
 ## Print Environment stacks' output
 outputs-environment: outputs-foundation outputs-compute outputs-db
@@ -369,7 +372,7 @@ delete-environment: delete-db delete-compute delete-foundation
 ## Deletes the build pipeline CF stack
 delete-build:
 	$(eval export ECR_REPO = $(shell echo "${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo"))
-	$(eval export ECR_COUNT = $(shell aws ecr list-images --repository-name "${ECR_REPO}" | jq -r '.imageIds | length | select (.!=0|0)'))
+	$(eval export ECR_COUNT = $(shell aws ecr list-images --repository-name "${ECR_REPO}" --region ${REGION} | jq -r '.imageIds | length | select (.!=0|0)'))
 	@if [[ "${ECR_COUNT}" != "0" ]]; then \
 		echo "${.RED}Can't delete ECS Repository '${ECR_REPO}', there are still ${ECR_COUNT} Docker images on it!${.CLEAR}"; \
 		echo "${.YELLOW}[Cancelled]${.CLEAR}" && exit 1 ; \

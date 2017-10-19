@@ -3,7 +3,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: AWS Foundation Template
 
-
 Parameters:
   Environment:
     Description: Stack environment
@@ -30,6 +29,10 @@ Parameters:
   Region:
     Default: us-east-1
     Description: Region
+    Type: String
+
+  ElbCertificateArn:
+    Description: ARN for certificate to attach to the ELB(s).
     Type: String
 
   CreateHostedZone:
@@ -102,6 +105,7 @@ Resources:
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/load-balancer.yaml
       Parameters:
         FoundationStackName: !Sub ${AWS::StackName}
+        CertificateArn: !Ref ElbCertificateArn
 
 Outputs:
   FoundationVpcId:
