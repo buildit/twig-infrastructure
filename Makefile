@@ -71,7 +71,7 @@ create-foundation: deps upload-templates
 			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" \
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
-			"ParameterKey=Region,ParameterValue=${REGION}" \
+			"ParameterKey=NotificationEmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
 			"ParameterKey=ElbCertificateArn,ParameterValue=${CERT_ARN}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
@@ -136,6 +136,7 @@ create-build: upload-build
 			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
+			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -157,7 +158,6 @@ create-app: deps upload-app
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Repository,ParameterValue=${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
-			"ParameterKey=TargetGroupHealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
@@ -177,7 +177,7 @@ update-foundation: upload-templates
 			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" \
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
-			"ParameterKey=Region,ParameterValue=${REGION}" \
+			"ParameterKey=NotificationEmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
 			"ParameterKey=ElbCertificateArn,ParameterValue=${CERT_ARN}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
@@ -240,6 +240,7 @@ update-build: upload-build
 			"ParameterKey=Prefix,ParameterValue=${OWNER}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
+			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"

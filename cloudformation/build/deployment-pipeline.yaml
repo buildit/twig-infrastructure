@@ -50,6 +50,9 @@ Parameters:
     Description: The unique priority across applications sharing the ALB
     Type: Number
 
+  HealthCheckPath:
+    Type: String
+
   SlackChannel:
     Description: Slack channel (no \#) to post to
     Type: String
@@ -63,14 +66,6 @@ Resources:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'ecr', 'repo' ] ]
-
-#  CodePipelineSNSTopic:
-#     Condition: ShouldCreateSns
-#     Type: AWS::SNS::Topic
-#     Properties:
-#       Subscription:
-#         - Endpoint: "https://hooks.slack.com/services/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"
-#           Protocol: https
 
   CloudFormationExecutionRole:
     Type: AWS::IAM::Role
@@ -98,6 +93,7 @@ Resources:
                   - route53:*
                   - elasticloadbalancing:*
                   - logs:*
+                  - cloudwatch:*
 
   CodeBuildServiceRole:
     DependsOn: CloudFormationExecutionRole
@@ -346,6 +342,7 @@ Resources:
                     "ContainerPort": "${ContainerPort}",
                     "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
+                    "HealthCheckPath": "${HealthCheckPath}",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
               InputArtifacts:
@@ -394,6 +391,7 @@ Resources:
                     "ContainerPort": "${ContainerPort}",
                     "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
+                    "HealthCheckPath": "${HealthCheckPath}",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
               InputArtifacts:
@@ -434,6 +432,7 @@ Resources:
                     "ContainerPort": "${ContainerPort}",
                     "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
+                    "HealthCheckPath": "${HealthCheckPath}",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
               RunOrder: 1
