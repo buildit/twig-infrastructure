@@ -140,7 +140,7 @@ Resources:
           Value: !Sub "${AWS::StackName}--CouchDb"
       NetworkInterfaces:
         - AssociatePublicIpAddress: "false"
-          SubnetId: !Ref DbSubnetPrivateA
+          SubnetId: !Ref DbSubnetPrivateB
           DeviceIndex: "0"
           GroupSet:
             - Ref: "SecurityGroup"
@@ -148,7 +148,7 @@ Resources:
         Fn::Base64:
           !Sub |
             #!/bin/bash
-            echo "0  0  2  *  * root  aws s3 sync /usr/local/var/lib/couchdb/ s3://${CouchDbBackupBucket} --region us-west-2 --delete" > /etc/cron.d/couchdb-backup
+            echo "0  2  *  *  * root  aws s3 sync /usr/local/var/lib/couchdb/ s3://${CouchDbBackupBucket} --region ${AWS::Region} --delete" > /etc/cron.d/couchdb-backup
 
   DbSubnetPrivateA:
     Type: AWS::EC2::Subnet
