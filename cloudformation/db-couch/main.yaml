@@ -56,16 +56,16 @@ Mappings:
 
 
 Resources:
-  AppEnvDns:
-    Type: AWS::Route53::RecordSetGroup
-    Properties:
-      HostedZoneId:
-        Fn::ImportValue: !Sub "${FoundationStackName}--InternalDns"
-      Comment: DNS for CouchDb.
-      RecordSets:
-      - Name: !Join
+
+  CouchDnsName:
+      Type: AWS::Route53::RecordSet
+      Properties:
+        HostedZoneId:
+          Fn::ImportValue: !Sub "${FoundationStackName}--InternalDns"
+        Comment: DNS name for CouchDb.
+        Name: !Join
           - '.'
-          - - "couchdb"
+          - - !Sub "couchdb-${Environment}"
             - Fn::ImportValue: !Sub "${FoundationStackName}--InternalHostedZoneName"
         Type: CNAME
         TTL: '300'
@@ -140,7 +140,7 @@ Resources:
           Value: !Sub "${AWS::StackName}--CouchDb"
       NetworkInterfaces:
         - AssociatePublicIpAddress: "false"
-          SubnetId: !Ref DbSubnetPrivateA
+          SubnetId: !Ref DbSubnetPrivateB
           DeviceIndex: "0"
           GroupSet:
             - Ref: "SecurityGroup"
@@ -148,7 +148,7 @@ Resources:
         Fn::Base64:
           !Sub |
             #!/bin/bash
-            echo "0  0  2  *  * root  aws s3 sync /usr/local/var/lib/couchdb/ s3://${CouchDbBackupBucket} --region us-west-2 --delete" > /etc/cron.d/couchdb-backup
+            echo "0  2  *  *  * root  aws s3 sync /usr/local/var/lib/couchdb/ s3://${CouchDbBackupBucket} --region ${AWS::Region} --delete" > /etc/cron.d/couchdb-backup
 
   DbSubnetPrivateA:
     Type: AWS::EC2::Subnet
@@ -203,6 +203,13 @@ Outputs:
       Name: !Sub "${AWS::StackName}--DbSubnetPrivateB"
     Value:
       Ref: DbSubnetPrivateB
+
+  CouchDnsName:
+    Description: The DNS name of the CouchDb instance.
+    Export:
+      Name: !Sub "${AWS::StackName}--CouchDbDnsName"
+    Value:
+      Ref: CouchDnsName
 
   CouchDbBackupBucket:
     Description: The bucket created for backups of CouchDb files.
