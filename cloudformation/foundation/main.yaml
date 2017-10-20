@@ -26,14 +26,14 @@ Parameters:
     Description: Public Domain Name for sites and services created by this stack.
     Type: String
 
-  Region:
-    Default: us-east-1
-    Description: Region
+  NotificationEmailAddress:
+    Description: Email address to send notifications to
     Type: String
 
   ElbCertificateArn:
     Description: ARN for certificate to attach to the ELB(s).
     Type: String
+    Default: ""
 
   CreateHostedZone:
     Default: no
@@ -42,7 +42,6 @@ Parameters:
     AllowedValues:
       - no
       - yes
-
 
 Conditions:
   ShouldCreateHostedZone: !Equals [ !Ref CreateHostedZone, yes ]
@@ -70,7 +69,7 @@ Resources:
         CidrBlock: !FindInMap [ EnvironmentToCidr, !Ref Environment, CidrBlock ]
         Environment: !Ref Environment
         FoundationStackName: !Sub ${AWS::StackName}
-        Region: !Ref Region
+        Region: !Sub ${AWS::Region}
         SubnetPrivateCidrBlocks: !FindInMap [ EnvironmentToCidr, !Ref Environment, SubnetPrivateCidrBlocks ]
         SubnetPublicCidrBlocks: !FindInMap [ EnvironmentToCidr, !Ref Environment, SubnetPublicCidrBlocks ]
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/vpc.yaml
@@ -106,6 +105,14 @@ Resources:
       Parameters:
         FoundationStackName: !Sub ${AWS::StackName}
         CertificateArn: !Ref ElbCertificateArn
+
+  Sns:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/sns.yaml
+      Parameters:
+        FoundationStackName: !Sub ${AWS::StackName}
+        NotificationEmailAddress: !Ref NotificationEmailAddress
 
 Outputs:
   FoundationVpcId:

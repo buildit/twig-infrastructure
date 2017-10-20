@@ -71,7 +71,7 @@ create-foundation: deps upload-templates
 			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" \
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
-			"ParameterKey=Region,ParameterValue=${REGION}" \
+			"ParameterKey=NotificationEmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
 			"ParameterKey=ElbCertificateArn,ParameterValue=${CERT_ARN}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
@@ -177,7 +177,7 @@ update-foundation: upload-templates
 			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" \
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
-			"ParameterKey=Region,ParameterValue=${REGION}" \
+			"ParameterKey=NotificationEmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
 			"ParameterKey=ElbCertificateArn,ParameterValue=${CERT_ARN}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
