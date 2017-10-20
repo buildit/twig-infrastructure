@@ -67,14 +67,6 @@ Resources:
     Properties:
       RepositoryName: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'ecr', 'repo' ] ]
 
-#  CodePipelineSNSTopic:
-#     Condition: ShouldCreateSns
-#     Type: AWS::SNS::Topic
-#     Properties:
-#       Subscription:
-#         - Endpoint: "https://hooks.slack.com/services/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"
-#           Protocol: https
-
   CloudFormationExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -101,6 +93,7 @@ Resources:
                   - route53:*
                   - elasticloadbalancing:*
                   - logs:*
+                  - cloudwatch:*
 
   CodeBuildServiceRole:
     DependsOn: CloudFormationExecutionRole
@@ -398,6 +391,7 @@ Resources:
                     "ContainerPort": "${ContainerPort}",
                     "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
+                    "HealthCheckPath": "${HealthCheckPath}",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
               InputArtifacts:
@@ -438,6 +432,7 @@ Resources:
                     "ContainerPort": "${ContainerPort}",
                     "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
+                    "HealthCheckPath": "${HealthCheckPath}",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
               RunOrder: 1
