@@ -66,6 +66,9 @@ Conditions:
   - !Equals [ !Ref Environment, production ]
   - !Equals [ !Ref Prefix, "" ]
 
+  EnableTestUser:
+  !Equals [!Ref Environment, integration]
+
 Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -266,8 +269,8 @@ Resources:
               Value: !Ref Environment
             - Name: TWIG_API_DB_URL
               Value: http://couchdb.twig.internal:5984
-            - Name: ENVIRONMENT
-              Value: !Ref Environment
+            - Name: ENABLE_TEST_USER
+              Value: !If [EnableTestUser, true, false]
 
 Outputs:
   ApplicationUrl:
