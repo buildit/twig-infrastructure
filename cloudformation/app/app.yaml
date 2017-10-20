@@ -70,6 +70,9 @@ Conditions:
   - !Equals [ !Ref Environment, production ]
   - !Equals [ !Ref Prefix, "" ]
 
+  EnableTestUser:
+    !Equals [!Ref Environment, integration]
+
 Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -265,8 +268,8 @@ Resources:
               Value: info
             - Name: TWIG_API_TENANT
               Value: ''
-            - Name: ENVIRONMENT
-              Value: !Ref Environment
+            - Name: ENABLE_TEST_USER
+              Value: !If [EnableTestUser, true, false]
             - Name: TWIG_API_DB_URL
               Value: !Join
                 - ''
