@@ -50,6 +50,9 @@ Parameters:
     Description: The unique priority across applications sharing the ALB
     Type: Number
 
+  HealthCheckPath:
+    Type: String
+
   SlackChannel:
     Description: Slack channel (no \#) to post to
     Type: String
@@ -346,6 +349,7 @@ Resources:
                     "ContainerPort": "${ContainerPort}",
                     "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
+                    "HealthCheckPath": "${HealthCheckPath}",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
               InputArtifacts:
