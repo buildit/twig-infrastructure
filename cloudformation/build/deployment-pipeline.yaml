@@ -443,20 +443,16 @@ Resources:
                 Owner: AWS
                 Provider: Manual
                 Version: '1'
-        #       Configuration:
-        #         NotificationArn: !Ref CodePipelineSNSTopic
-        #         CustomData: !Sub |
-        #           {
-        #             "icon_emjoi": ":tada:",
-        #             "username": "AWS CodePipeline Overlord",
-        #             "channel": "${SlackChannel}",
-        #             "fallback": "",
-        #             "color":
-        # "Build Failed - Staging - Branch: ${env.BRANCH_NAME}",
-        # "(<${env.BUILD_URL}|Failed Job>) Commit '<${gitUrl}/commits/${shortCommitHash}|${shortCommitHash}>' failed.\n\n${commitMessage}",
-        # "danger",
-        #             ""'A new change set was created for the ${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch} stack. Do you want to implement the changes?'
-        #           }
+              Configuration:
+                NotificationArn:
+                  Fn::ImportValue: !Sub "${AWS::StackName}--SNS--Topic--build"
+#                CustomData: !Sub |
+#                  {
+#                     "icon_emjoi": ":tada:",
+#                      "text": "${AppStackName}:  Approval needed for production promotion:",
+#                      "username": "AWS CodePipeline Overlord",
+#                      "mrkdwn": true
+#                  }
               RunOrder: 2
             - Name: ExecuteChangeSet
               ActionTypeId:
