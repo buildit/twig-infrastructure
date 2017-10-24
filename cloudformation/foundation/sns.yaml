@@ -4,36 +4,40 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: SNS setup
 
 Parameters:
-  NotificationEmailAddressOps:
+  NotificationEmailAddress:
     Description: Email address to send alerts to
     Type: String
     Default: ""
 
-  FoundationStackName:
+  ParentStackName:
     Description: Foundation stack name
     Type: String
 
+  Purpose:
+    Description: Purpose of topic/subscription.  Used in resource names.
+    Type: String
+
 Conditions:
-  EmailSpecified: !Not [ !Equals [ !Ref NotificationEmailAddressOps, "" ] ]
+  EmailSpecified: !Not [ !Equals [ !Ref NotificationEmailAddress, "" ] ]
 
 Resources:
-  SnsTopicOps:
+  SnsTopic:
     Type: "AWS::SNS::Topic"
     Properties:
-      TopicName: !Sub "${FoundationStackName}-ops-notifications"
+      TopicName: !Sub "${ParentStackName}-${Purpose}-topic"
 
-  EmailSubscriptionOps:
+  EmailSubscription:
     Type: "AWS::SNS::Subscription"
     Condition: EmailSpecified
     Properties:
-      Endpoint: !Ref NotificationEmailAddressOps
+      Endpoint: !Ref NotificationEmailAddress
       Protocol: email
-      TopicArn: !Ref SnsTopicOps
+      TopicArn: !Ref SnsTopic
 
 Outputs:
   SnsTopic:
     Description: SNS Topic
     Export:
-      Name: !Sub "${FoundationStackName}--SNS--Topic--Ops"
+      Name: !Sub "${ParentStackName}--SNS--Topic--${Purpose}"
     Value:
-      Ref: SnsTopicOps
+      Ref: SnsTopic

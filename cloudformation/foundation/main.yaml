@@ -111,8 +111,9 @@ Resources:
     Properties:
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/sns.yaml
       Parameters:
-        FoundationStackName: !Sub ${AWS::StackName}
-        NotificationEmailAddressOps: !Ref NotificationEmailAddressOps
+        ParentStackName: !Sub ${AWS::StackName}
+        NotificationEmailAddress: !Ref NotificationEmailAddressOps
+        Purpose: ops
 
 Outputs:
   FoundationVpcId:
