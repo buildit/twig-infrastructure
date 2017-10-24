@@ -62,15 +62,15 @@ installation is:
 
 ###### Execution/runtime Infrastructure and Environments
 * Run `make create-foundation ENV=integration`
-  * (optional) EMAIL_ADDRESS to send alarms to
+  * (optional) EMAIL_ADDRESS_OPS for ops notifications
 * Run `make create-compute ENV=integration`
 * Run `make create-db ENV=integration`
 * Run `make create-foundation ENV=staging`
-  * (optional) EMAIL_ADDRESS to send alarms to
+  * (optional) EMAIL_ADDRESS_OPS for ops notifications
 * Run `make create-compute ENV=staging`
 * Run `make create-db ENV=staging`
 * Run `make create-foundation ENV=production`
-  * (optional) EMAIL_ADDRESS to send alarms to
+  * (optional) EMAIL_ADDRESS_OPS for ops notifications
 * Run `make create-compute ENV=production`
 * Run `make create-db ENV=production`
 
@@ -86,6 +86,7 @@ the cloud, sort-of).  So what we're doing in this step is creating the build pip
   * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
   * HEALTH_CHECK_PATH is the path that is checked by the target group to determine health of the container (e.g. `/ping`)
   * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
+  * (optional) EMAIL_ADDRESS_BUILD for build notifications
   * (optional) PREFIX is what goes in front of the URI of the application.  Defaults to OWNER but for the "real" riglet should be set to blank (e.g. `PREFIX=`)
 
 ###### Deployed Applications

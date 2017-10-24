@@ -71,7 +71,7 @@ create-foundation: deps upload-templates
 			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" \
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
-			"ParameterKey=NotificationEmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
+			"ParameterKey=NotificationEmailAddressOps,ParameterValue=${EMAIL_ADDRESS_OPS}" \
 			"ParameterKey=ElbCertificateArn,ParameterValue=${CERT_ARN}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
@@ -128,6 +128,7 @@ create-build: upload-build
 			"ParameterKey=AppStackName,ParameterValue=${OWNER}-${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=InfraDevBucketBase,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.app" \
+			"ParameterKey=NotificationEmailAddressBuild,ParameterValue=${EMAIL_ADDRESS_BUILD}" \
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
@@ -177,7 +178,7 @@ update-foundation: upload-templates
 			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" \
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
-			"ParameterKey=NotificationEmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
+			"ParameterKey=NotificationEmailAddressOps,ParameterValue=${EMAIL_ADDRESS_OPS}" \
 			"ParameterKey=ElbCertificateArn,ParameterValue=${CERT_ARN}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
@@ -232,6 +233,7 @@ update-build: upload-build
 			"ParameterKey=AppStackName,ParameterValue=${OWNER}-${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=InfraDevBucketBase,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.app" \
+			"ParameterKey=NotificationEmailAddressBuild,ParameterValue=${EMAIL_ADDRESS_BUILD}" \
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
@@ -254,7 +256,7 @@ update-app: deps upload-app
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
-			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
+			"ParameterKey=ParentStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=DbStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-db-couch" \
 			"ParameterKey=InfraDevBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" \

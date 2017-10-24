@@ -26,8 +26,8 @@ Parameters:
     Description: Public Domain Name for sites and services created by this stack.
     Type: String
 
-  NotificationEmailAddress:
-    Description: Email address to send notifications to
+  NotificationEmailAddressOps:
+    Description: Email address to send ops notifications to
     Type: String
 
   ElbCertificateArn:
@@ -111,8 +111,9 @@ Resources:
     Properties:
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/sns.yaml
       Parameters:
-        FoundationStackName: !Sub ${AWS::StackName}
-        NotificationEmailAddress: !Ref NotificationEmailAddress
+        ParentStackName: !Sub ${AWS::StackName}
+        NotificationEmailAddress: !Ref NotificationEmailAddressOps
+        Purpose: ops
 
 Outputs:
   FoundationVpcId:
