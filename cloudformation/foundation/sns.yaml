@@ -4,7 +4,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: SNS setup
 
 Parameters:
-  NotificationEmailAddress:
+  NotificationEmailAddressOps:
     Description: Email address to send alerts to
     Type: String
     Default: ""
@@ -14,26 +14,26 @@ Parameters:
     Type: String
 
 Conditions:
-  EmailSpecified: !Not [ !Equals [ !Ref NotificationEmailAddress, "" ] ]
+  EmailSpecified: !Not [ !Equals [ !Ref NotificationEmailAddressOps, "" ] ]
 
 Resources:
-  SnsTopic:
+  SnsTopicOps:
     Type: "AWS::SNS::Topic"
     Properties:
       TopicName: !Sub "${FoundationStackName}-ops-notifications"
 
-  EmailSubscription:
+  EmailSubscriptionOps:
     Type: "AWS::SNS::Subscription"
     Condition: EmailSpecified
     Properties:
-      Endpoint: !Ref NotificationEmailAddress
+      Endpoint: !Ref NotificationEmailAddressOps
       Protocol: email
-      TopicArn: !Ref SnsTopic
+      TopicArn: !Ref SnsTopicOps
 
 Outputs:
   SnsTopic:
     Description: SNS Topic
     Export:
-      Name: !Sub "${FoundationStackName}--SNS--Topic"
+      Name: !Sub "${FoundationStackName}--SNS--Topic--Ops"
     Value:
-      Ref: SnsTopic
+      Ref: SnsTopicOps

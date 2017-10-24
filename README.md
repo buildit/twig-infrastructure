@@ -62,15 +62,15 @@ installation is:
 
 ###### Execution/runtime Infrastructure and Environments
 * Run `make create-foundation ENV=integration`
-  * (optional) EMAIL_ADDRESS to send alarms to
+  * (optional) EMAIL_ADDRESS_OPS to send alarms to
 * Run `make create-compute ENV=integration`
 * Run `make create-db ENV=integration`
 * Run `make create-foundation ENV=staging`
-  * (optional) EMAIL_ADDRESS to send alarms to
+  * (optional) EMAIL_ADDRESS_OPS to send alarms to
 * Run `make create-compute ENV=staging`
 * Run `make create-db ENV=staging`
 * Run `make create-foundation ENV=production`
-  * (optional) EMAIL_ADDRESS to send alarms to
+  * (optional) EMAIL_ADDRESS_OPS to send alarms to
 * Run `make create-compute ENV=production`
 * Run `make create-db ENV=production`
 

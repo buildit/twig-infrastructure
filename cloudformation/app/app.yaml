@@ -202,7 +202,7 @@ Resources:
 #      AlarmName: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
 #      AlarmDescription: !Sub "Alarm when ${Prefix}${Environment}-${ApplicationName}.${PublicDomainName} not reachable via Route53 health check."
 #      AlarmActions:
-#        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+#        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic--Ops"
 #      MetricName: HealthCheckStatus
 #      Namespace: AWS/Route53
 #      Statistic: Minimum
