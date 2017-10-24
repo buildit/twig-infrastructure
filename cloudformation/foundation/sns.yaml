@@ -20,7 +20,7 @@ Resources:
   SnsTopic:
     Type: "AWS::SNS::Topic"
     Properties:
-      TopicName: !Ref FoundationStackName
+      TopicName: !Sub "${FoundationStackName}-ops-notifications"
 
   EmailSubscription:
     Type: "AWS::SNS::Subscription"
