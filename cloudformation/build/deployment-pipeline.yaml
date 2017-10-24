@@ -58,8 +58,9 @@ Parameters:
     Type: String
     Default: ""
 
-# Conditions:
-#   ShouldCreateSns: !Not [ Equals [ !Ref SlackChannel, "" ] ]
+  NotificationEmailAddressBuild:
+    Description: Email address to send build notifications to
+    Type: String
 
 Resources:
   Repository:
@@ -473,6 +474,15 @@ Resources:
               OutputArtifacts:
                 - Name: ProductionEnvironment
               RunOrder: 3
+
+  Sns:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${BuildArtifactsBucket}/templates/sns.yaml
+      Parameters:
+        ParentStackName: !Sub ${AWS::StackName}
+        NotificationEmailAddress: !Ref NotificationEmailAddressBuild
+        Purpose: build
 
 Outputs:
   PipelineUrl:
