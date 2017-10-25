@@ -492,6 +492,35 @@ Resources:
                 - Name: ProductionEnvironment
               RunOrder: 3
 
+
+  EventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: "TwigBuildNotifications"
+      Description: "CloudWatch Event Rule to trap build status and send to SNS for eventual delivery to subscribers."
+      EventPattern:
+        source:
+          - "aws.codebuild"
+        detail-type:
+          - "CodeBuild Build State Change"
+        detail:
+          build-status:
+            - SUCCEEDED
+            - FAILED
+        project-name:
+          - !Ref CodeBuildProject
+      State: "ENABLED"
+      Targets:
+        - Arn:
+            Fn::ImportValue: !Sub "${AWS::StackName}--SNS--Topic--build"
+          Id: BuildResultsSns
+          InputTransformer:
+            InputPathsMap:
+              build-id: '$.detail.build-id'
+              project-name: '$.detail.project-name'
+              build-status: '$.detail.build-status'
+            InputTemplate: "Build <build-id>"
+
   Sns:
     Type: AWS::CloudFormation::Stack
     Properties:
