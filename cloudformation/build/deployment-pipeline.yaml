@@ -62,6 +62,15 @@ Parameters:
     Description: Email address to send build notifications to
     Type: String
 
+Mappings:
+  EnvironmentDefaults:
+    integration:
+      DesiredTasks: "2"
+    staging:
+      DesiredTasks: "2"
+    production:
+      DesiredTasks: "4"
+
 Resources:
   Repository:
     Type: AWS::ECR::Repository
@@ -329,23 +338,25 @@ Resources:
                 OutputFileName: CloudFormationOutput.json
                 TemplatePath: IntegrationTemplate::app.yaml
                 RoleArn: !GetAtt CloudFormationExecutionRole.Arn
-                ParameterOverrides: !Sub |
-                  {
-                    "Environment": "integration",
-                    "FoundationStackName": "${AppStackName}-integration-foundation",
-                    "ComputeStackName": "${AppStackName}-integration-compute-ecs",
-                    "DbStackName": "${AppStackName}-integration-db-couch",
-                    "InfraDevBucket": "${InfraDevBucketBase}.integration",
-                    "PublicDomainName": "${PublicDomainName}",
-                    "Repository": "${Repository}",
-                    "ApplicationName": "${ApplicationName}",
-                    "Prefix": "${Prefix}",
-                    "ContainerPort": "${ContainerPort}",
-                    "TaskDesiredCount":"1",
-                    "ListenerRulePriority": "${ListenerRulePriority}",
-                    "HealthCheckPath": "${HealthCheckPath}",
-                    "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
-                  }
+                ParameterOverrides: !Sub
+                  - |
+                    {
+                      "Environment": "integration",
+                      "FoundationStackName": "${AppStackName}-integration-foundation",
+                      "ComputeStackName": "${AppStackName}-integration-compute-ecs",
+                      "DbStackName": "${AppStackName}-integration-db-couch",
+                      "InfraDevBucket": "${InfraDevBucketBase}.integration",
+                      "PublicDomainName": "${PublicDomainName}",
+                      "Repository": "${Repository}",
+                      "ApplicationName": "${ApplicationName}",
+                      "Prefix": "${Prefix}",
+                      "ContainerPort": "${ContainerPort}",
+                      "TaskDesiredCount":"${EnvironmentTaskDesiredCount}",
+                      "ListenerRulePriority": "${ListenerRulePriority}",
+                      "HealthCheckPath": "${HealthCheckPath}",
+                      "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
+                    }
+                  - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, integration, DesiredTasks ]
               InputArtifacts:
                 - Name: IntegrationTemplate
                 - Name: BuildOutput
@@ -378,23 +389,26 @@ Resources:
                 OutputFileName: CloudFormationOutput.json
                 TemplatePath: StagingTemplate::app.yaml
                 RoleArn: !GetAtt CloudFormationExecutionRole.Arn
-                ParameterOverrides: !Sub |
-                  {
-                    "Environment": "staging",
-                    "FoundationStackName": "${AppStackName}-staging-foundation",
-                    "ComputeStackName": "${AppStackName}-staging-compute-ecs",
-                    "DbStackName": "${AppStackName}-staging-db-couch",
-                    "InfraDevBucket": "${InfraDevBucketBase}.staging",
-                    "PublicDomainName": "${PublicDomainName}",
-                    "Repository": "${Repository}",
-                    "ApplicationName": "${ApplicationName}",
-                    "Prefix": "${Prefix}",
-                    "ContainerPort": "${ContainerPort}",
-                    "TaskDesiredCount":"1",
-                    "ListenerRulePriority": "${ListenerRulePriority}",
-                    "HealthCheckPath": "${HealthCheckPath}",
-                    "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
-                  }
+                ParameterOverrides: !Sub
+                  - |
+                    {
+                      "Environment": "staging",
+                      "FoundationStackName": "${AppStackName}-staging-foundation",
+                      "ComputeStackName": "${AppStackName}-staging-compute-ecs",
+                      "DbStackName": "${AppStackName}-staging-db-couch",
+                      "InfraDevBucket": "${InfraDevBucketBase}.staging",
+                      "PublicDomainName": "${PublicDomainName}",
+                      "Repository": "${Repository}",
+                      "ApplicationName": "${ApplicationName}",
+                      "Prefix": "${Prefix}",
+                      "ContainerPort": "${ContainerPort}",
+                      "TaskDesiredCount":"${EnvironmentTaskDesiredCount}",
+                      "ListenerRulePriority": "${ListenerRulePriority}",
+                      "HealthCheckPath": "${HealthCheckPath}",
+                      "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
+                    }
+                  - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, staging, DesiredTasks ]
+
               InputArtifacts:
                 - Name: StagingTemplate
                 - Name: BuildOutput
@@ -419,23 +433,25 @@ Resources:
                 Capabilities: CAPABILITY_NAMED_IAM
                 ChangeSetName: !Sub "${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch}"
                 TemplatePath: ProductionTemplate::app.yaml
-                ParameterOverrides: !Sub |
-                  {
-                    "Environment": "production",
-                    "FoundationStackName": "${AppStackName}-production-foundation",
-                    "ComputeStackName": "${AppStackName}-production-compute-ecs",
-                    "DbStackName": "${AppStackName}-production-db-couch",
-                    "InfraDevBucket": "${InfraDevBucketBase}.production",
-                    "PublicDomainName": "${PublicDomainName}",
-                    "Repository": "${Repository}",
-                    "ApplicationName": "${ApplicationName}",
-                    "Prefix": "${Prefix}",
-                    "ContainerPort": "${ContainerPort}",
-                    "TaskDesiredCount":"1",
-                    "ListenerRulePriority": "${ListenerRulePriority}",
-                    "HealthCheckPath": "${HealthCheckPath}",
-                    "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
-                  }
+                ParameterOverrides: !Sub
+                  - |
+                    {
+                      "Environment": "production",
+                      "FoundationStackName": "${AppStackName}-production-foundation",
+                      "ComputeStackName": "${AppStackName}-production-compute-ecs",
+                      "DbStackName": "${AppStackName}-production-db-couch",
+                      "InfraDevBucket": "${InfraDevBucketBase}.production",
+                      "PublicDomainName": "${PublicDomainName}",
+                      "Repository": "${Repository}",
+                      "ApplicationName": "${ApplicationName}",
+                      "Prefix": "${Prefix}",
+                      "ContainerPort": "${ContainerPort}",
+                      "TaskDesiredCount":"${EnvironmentTaskDesiredCount}",
+                      "ListenerRulePriority": "${ListenerRulePriority}",
+                      "HealthCheckPath": "${HealthCheckPath}",
+                      "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
+                    }
+                  - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, production, DesiredTasks ]
               RunOrder: 1
             - Name: ApproveChangeSet
               ActionTypeId:
