@@ -465,15 +465,8 @@ Resources:
                 Owner: AWS
                 Provider: Manual
                 Version: '1'
-<<<<<<< HEAD
-              # Configuration:
-              #   NotificationArn:
-              #     Fn::ImportValue: !Sub "${AWS::StackName}--SNS--Topic--build"
-=======
               Configuration:
                 NotificationArn: !GetAtt Sns.Outputs.SnsTopic
-
->>>>>>> 1868dd3fc22359a9f2a088bbece9e0093bc42838
 #                CustomData: !Sub |
 #                  {
 #                     "icon_emjoi": ":tada:",
