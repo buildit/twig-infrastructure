@@ -136,6 +136,7 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:GetObjectVersion
+                  - s3:PutObjectAcl
               - Resource: !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}"
                 Effect: Allow
                 Action:
@@ -214,6 +215,8 @@ Resources:
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
             Value: !Ref GitHubBranch
+          - Name: REPORTS_BUCKET
+            Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}/reports"
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'build' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
@@ -242,6 +245,8 @@ Resources:
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
             Value: !Ref GitHubBranch
+          - Name: SCREENSHOTS_BUCKET
+            Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}/screenshots"
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'e2e', 'test' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
@@ -460,9 +465,15 @@ Resources:
                 Owner: AWS
                 Provider: Manual
                 Version: '1'
+<<<<<<< HEAD
+              # Configuration:
+              #   NotificationArn:
+              #     Fn::ImportValue: !Sub "${AWS::StackName}--SNS--Topic--build"
+=======
               Configuration:
                 NotificationArn: !GetAtt Sns.Outputs.SnsTopic
 
+>>>>>>> 1868dd3fc22359a9f2a088bbece9e0093bc42838
 #                CustomData: !Sub |
 #                  {
 #                     "icon_emjoi": ":tada:",
@@ -506,3 +517,11 @@ Outputs:
         - !Ref 'AWS::Region'
         - '#/view/'
         - !Ref Pipeline
+
+  ReportsUrl:
+    Description: Reports URL
+    Value: !Sub "http://${BuildArtifactsBucket}.s3-website-${AWS::Region}.amazonaws.com/${AWS::StackName}/reports"
+
+  ScreenshotsUrl:
+    Description: E2E Tests Screenshots URL
+    Value: !Sub "http://${BuildArtifactsBucket}.s3-website-${AWS::Region}.amazonaws.com/${AWS::StackName}/screenshots"
