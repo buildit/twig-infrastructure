@@ -51,12 +51,15 @@ deps:
 
 # Destroy dependency S3 buckets, only destroy if empty
 delete-deps:
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.db-couch.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
-	# @aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
+	@if [ ! -f DeleteVersionedS3Bucket.jar ]; then \
+		curl -O https://s3.amazonaws.com/baremetal-rig-helpers/DeleteVersionedS3Bucket.jar; \
+	fi
+	@java -jar DeleteVersionedS3Bucket.jar rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
+	@java -jar DeleteVersionedS3Bucket.jar rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
+	@java -jar DeleteVersionedS3Bucket.jar rig.${OWNER}.${PROJECT}.${REGION}.db-couch.${ENV}
+	@java -jar DeleteVersionedS3Bucket.jar rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
+	# @java -jar DeleteVersionedS3Bucket.jar rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
+	@java -jar DeleteVersionedS3Bucket.jar rig.${OWNER}.${PROJECT}.${REGION}.build
 
 ## Creates Foundation and Build
 
@@ -481,6 +484,10 @@ help:
 			echo "\n${.YELLOW}[Cancelled]${.CLEAR}" && exit 1 ;; \
 	esac
 
+.check-for-delete-bucket-jar:
+	@if [ ! -f DeleteVersionedS3Bucket.jar ]; then \
+		curl -O https://s3.amazonaws.com/baremetal-rig-helpers/DeleteVersionedS3Bucket.jar; \
+	fi
 
 .make:
 	@touch .make
