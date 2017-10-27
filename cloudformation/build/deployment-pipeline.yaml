@@ -204,13 +204,8 @@ Resources:
       Environment:
         ComputeType: !Ref CodeBuildComputeType
         Image: "aws/codebuild/docker:1.12.1"
-        # Image: "aws/codebuild/java:openjdk-8"
-        # Image: "aws/codebuild/eb-java-8-amazonlinux-64:2.4.3"
-        # PrivilegedMode: true
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
-        #   - Name: AWS_REGION
-        #     Value: !Ref AWS::Region
           - Name: REPOSITORY_URI
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
@@ -230,15 +225,9 @@ Resources:
         BuildSpec: buildspec.e2e.yml
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
-        # Image: !Ref CodeBuildProjectTestImage
         Image: "aws/codebuild/docker:1.12.1"
-        # Image: "aws/codebuild/java:openjdk-8"
-        # Image: "aws/codebuild/eb-java-8-amazonlinux-64:2.4.3"
-        # PrivilegedMode: true
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
-        #   - Name: AWS_REGION
-        #     Value: !Ref AWS::Region
           - Name: ENDPOINT_URI
             Value: !Sub "https://${Prefix}integration-${ApplicationName}.${PublicDomainName}"
           - Name: REPOSITORY_URI
@@ -493,10 +482,10 @@ Resources:
               RunOrder: 3
 
 
-  EventRule:
+  EventRuleBuild:
     Type: "AWS::Events::Rule"
     Properties:
-      Name: "TwigBuildNotifications"
+      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-build-rule"
       Description: "CloudWatch Event Rule to trap build status and send to SNS for eventual delivery to subscribers."
       EventPattern:
         source:
@@ -507,8 +496,8 @@ Resources:
           build-status:
             - SUCCEEDED
             - FAILED
-        project-name:
-          - !Ref CodeBuildProject
+          project-name:
+            - !Ref CodeBuildProject
       State: "ENABLED"
       Targets:
         - Arn:
@@ -516,10 +505,40 @@ Resources:
           Id: BuildResultsSns
           InputTransformer:
             InputPathsMap:
-              build-id: '$.detail.build-id'
-              project-name: '$.detail.project-name'
-              build-status: '$.detail.build-status'
-            InputTemplate: "Build <build-id>"
+              build-id: "$.detail.build-id"
+              project-name: "$.detail.project-name"
+              build-status: "$.detail.build-status"
+              build-log-link: "$.detail.additional-information.logs.deep-link"
+            InputTemplate: '"<project-name> build <build-status>.  Log:  <build-log-link>"'
+
+  EventRuleTest:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-test-rule"
+      Description: "CloudWatch Event Rule to trap test status and send to SNS for eventual delivery to subscribers."
+      EventPattern:
+        source:
+          - "aws.codebuild"
+        detail-type:
+          - "CodeBuild Build State Change"
+        detail:
+          build-status:
+            - SUCCEEDED
+            - FAILED
+          project-name:
+            - !Ref CodeBuildProjectTest
+      State: "ENABLED"
+      Targets:
+        - Arn:
+            Fn::ImportValue: !Sub "${AWS::StackName}--SNS--Topic--build"
+          Id: BuildResultsSns
+          InputTransformer:
+            InputPathsMap:
+              build-id: "$.detail.build-id"
+              project-name: "$.detail.project-name"
+              build-status: "$.detail.build-status"
+              build-log-link: "$.detail.additional-information.logs.deep-link"
+            InputTemplate: '"<project-name> E2E test <build-status>.  Log:  <build-log-link>"'
 
   Sns:
     Type: AWS::CloudFormation::Stack
