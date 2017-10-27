@@ -26,6 +26,22 @@ Resources:
     Properties:
       TopicName: !Sub "${ParentStackName}-${Purpose}-topic"
 
+  SnsTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Id: MyTopicPolicy
+        Version: '2012-10-17'
+        Statement:
+        - Sid: allow-cloudwatch-events
+          Effect: Allow
+          Principal:
+            Service: "events.amazonaws.com"
+          Action: sns:Publish
+          Resource: "*"
+      Topics:
+      - !Ref SnsTopic
+
   EmailSubscription:
     Type: "AWS::SNS::Subscription"
     Condition: EmailSpecified
