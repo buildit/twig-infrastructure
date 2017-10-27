@@ -23,8 +23,23 @@ representing an _environment_: _integration_ testing, _staging_ and _production_
 pairs of private subnets for application and database instances, with appropriate NATs and routing to 
 give EC2 instances access to the internet.
 
+Into each VPC a number of EC2 instances is allocated:
+ - a configurable number of instances to comprise the EC2 Container Service (ECS) cluster
+ - a single EC2 instance running CouchDb (launched from a custom AMI)
+
 An Application Load Balancer (ALB) is also configured for the VPC.  This ALB is configured at build/deployment
-time to route traffic to the appropriate system. 
+time to route traffic to the appropriate system.
+
+ALB and application security groups are created is defined to disallow traffic to the ECS cluster from
+anywhere but the ALB, and over appropriate ports.
+
+An SNS "operations" topic is created, with the expectation that pertinent error messages and alarm message
+will be published there. An email address can optionally be subscribed to this topic at foundation creation time.
+
+> Unfortunately, no such monitoring had been put in place as of this writing.  Route53 External Health Check
+> alarms were attempted, but currently such alarms can only be defined in us-east-1, and the riglet 
+> runs in us-west-2. 
+
 
 ```
 
@@ -57,10 +72,6 @@ time to route traffic to the appropriate system.
     (one each for integration, staging, and production)
 ```
 
-Into each VPC a number of EC2 instances is allocated:
- - a configurable number of instances to comprise the EC2 Container Service (ECS) cluster
- - a single EC2 instance running CouchDb (launched from a custom AMI)
-
 ### Compute Layer
 The "compute layer" in this rig is an ECS Cluster.  ECS allows you to deploy arbitrary code in Docker images,
 and ECS handles the allocation of containers to run the images (a process known as "scheduling").
@@ -80,6 +91,10 @@ The EC2 instance is created from an AMI that was created from a running CouchDb 
 based riglet.  At instantiation time, a cron job is defined to back up the database files to an appropriate
 S3 bucket.
 
+A security group is created that allows access to the CouchDb instance only from the application
+group and only over the CouchDb port.
+
+
 ### Build "Layer"
 OK, it's not really a "layer", but the final piece of the riglet is the build pipeline.  In this case
 we use AWS CodePipeline and CodeBuild to define and execute the pipeline.  Builds are triggered by
@@ -90,6 +105,9 @@ Speaking of application deployments, those are also accomplished using Cfn, but 
 application Cfn stacks is automated in the build pipelines.  (_Note:_  one will seldom, if ever, create
 an application stack by hand.  However, the capability is there, and might be used to create a load
 testing environment with selected Docker images deployed.)
+
+An SNS "build" topic is created, and the build pipeline is configured to publish CodeBuild success/failure
+messages there. An email address can optionally be subscribed to this topic at foundation creation time.
   
 
 ## Setup
@@ -135,13 +153,16 @@ Confirm everything is valid with `make check-env`
 
 ### Firing it up
 
+#### Make
+Yes, Make.  Make is used to create, update, and delete riglets.  Get used to it.  To see all the available
+Make targets type `make` with no arguments.
+
 #### Feeling Lucky?  Uber-Scripts!
 There are a couple of scripts that fully automate the detailed steps found further down.  They hide the
 details, which is both a good and bad thing.
 
 * `./create-standard-riglet.sh [branch name]` to create a full riglet with standard environments (integration/staging/production).
 * `./delete-standard-riglet.sh [branch name]` to delete it all.  Note that you must delete your ECR images first.
-
 
 #### Individual Makefile Targets
 If you're not feeling particularly lucky, or you want to understand how things are assembled, or 
@@ -184,6 +205,7 @@ the cloud, sort-of).  So what we're doing in this step is creating the build pip
 It gets a little weird here.  You never start an application yourself in this riglet.  The build environments 
 actually dynamically create "app" stacks in CloudFormation as part of a successful build.  These app stacks 
 represent deployed and running code (they basically map to ECS Services and TaskDefinitions).
+
 
 ##### Tearing it down
 
@@ -229,6 +251,12 @@ Obviously, the templates can be updated if necessary.
 
 
 ## Maintenance
+### Logging
+ECS is automatically configured to capture application logs in CloudWatch Logs.  The logs are accessible
+in the AWS Console or with the CLI.  The log groups for the applications are named following the same
+convention as other stack resources, e.g. `buildit-twig-production-app-twig-api-master`.
+
+### Updating the environments
 Except in very unlikely and unusual circumstances _all infrastructure/build changes should be made via CloudFormation 
 updates_ either by submitting template file changes via the appropriate make command, or by changing parameters in
 the existing CloudFormation stacks using the console.  Failure to do so will cause the running environment(s) to diverge 
@@ -245,6 +273,8 @@ template.  Occasionally, Amazon releases newer AMIs and marks existing instances
 ECS console.  To update to the latest set of AMIs, run the `./cloudformation/scripts/ecs-optimized-ami.sh`
 script and copy the results into the `compute-ecs/main.yaml` template's `AWSRegionToAMI` mapping. 
 
+### Debugging and/or Database Maintenance
+Rarely, it might be necessary to access EC2 internals to either debug
 
 ### Scaling
 There are a few scaling "knobs" that can be twisted in running stacks, using CloudFormation console.  
