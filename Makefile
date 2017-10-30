@@ -122,7 +122,7 @@ create-db: upload-db
 create-environment: create-foundation create-compute create-db
 
 ## Create new CF Build pipeline stack
-create-build: upload-build
+create-build: upload-build upload-lambdas
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -143,6 +143,7 @@ create-build: upload-build
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
+			"ParameterKey=SlackUsername,ParameterValue=${OWNER}->${PROJECT}->${REPO}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -229,7 +230,7 @@ update-db: upload-db
 update-environment: update-foundation update-compute update-db
 
 ## Update existing Build Pipeline CF Stack
-update-build: upload-build
+update-build: upload-build upload-lambdas
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/build/deployment-pipeline.yaml" \
@@ -249,6 +250,7 @@ update-build: upload-build
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
+			"ParameterKey=SlackUsername,ParameterValue=${OWNER}->${PROJECT}->${REPO}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -435,6 +437,13 @@ upload-db:
 ## Upload Build CF Templates
 upload-build:
 	@aws s3 cp --recursive cloudformation/build/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build/templates/
+
+upload-lambdas:
+	@pwd=$(shell pwd)
+	@cd lambdas && zip LambdaNotifications.zip *.js
+	@cd ${pwd}
+	@aws s3 cp lambdas/LambdaNotifications.zip s3://rig.${OWNER}.${PROJECT}.${REGION}.build/lambdas/
+	@rm lambdas/LambdaNotifications.zip
 
 check-env:
 ifndef OWNER
