@@ -495,11 +495,6 @@ help:
 			echo "\n${.YELLOW}[Cancelled]${.CLEAR}" && exit 1 ;; \
 	esac
 
-.check-for-delete-bucket-jar:
-	@if [ ! -f DeleteVersionedS3Bucket.jar ]; then \
-		curl -O https://s3.amazonaws.com/baremetal-rig-helpers/DeleteVersionedS3Bucket.jar; \
-	fi
-
 .make:
 	@touch .make
 	@scripts/build-dotmake.sh
