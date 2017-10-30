@@ -1,6 +1,9 @@
 # Twig AWS Riglet
 
 ## Overview
+> This is a long README.  You might consider installing this browser plugin for presenting a README TOC:  
+> https://github.com/arthurhammer/github-toc
+
 This riglet is based completely on AWS technologies.  The idea is that it should require nothing but
 the AWS CLI to fire up an operational riglet with appropriate environments and a ready-to-execute 
 build pipeline.
@@ -212,11 +215,12 @@ represent deployed and running code (they basically map to ECS Services and Task
 To delete a running riglet, in order:
 
 * Run `make delete-app ENV=<environment> REPO=<repo_name> REPO_BRANCH=<branch>` to delete any running App stacks.
-  * if for some reason you deleted the pipeline first, you'll find you can't delete the app stacks because 
-    the role under which they were created was deleted with the pipeline. In this case you'll have to create 
-    a temporary "god role" and manually delete the app via the `aws cloudformation delete-stack` command, 
-    supplying the `--role-arn` override.
+  > If for some reason you deleted the pipeline first, you'll find you can't delete the app stacks because 
+  > the role under which they were created was deleted with the pipeline. In this case you'll have to create 
+  > a temporary "god role" (holding the AWS-maintained AdministratorAccess policy) and manually delete the app via 
+  > the `aws cloudformation delete-stack` command, supplying the `--role-arn` override with your temporary role.
 * Run `make delete-build REPO=<repo_name> REPO_BRANCH=<branch>` to delete the Pipline stack.
+* Run `make delete-db ENV=<environment>` to delete the Database stack.
 * Run `make delete-compute ENV=<environment>` to delete the Compute stack.
 * Run `make delete-foundation ENV=<environment>` to delete the Foundation stack.
 * Run `make delete-deps ENV=<environment>` to delete the required S3 buckets.
@@ -319,6 +323,21 @@ And here are the available *database* scaling parameters.
 | Parameter             | Scaling Style | Stack         | Parameter  
 | :---                  | :---          | :---          | :---
 | Size of Couch Host    | Vertical      | db-couch      | InstanceType  |
+
+
+## Deployment information
+
+### Deployments
+* [Integration](https://builditintegration-twig-api.buildit.tools/ping)
+* [Staging](https://builditstaging-twig-api.buildit.tools/ping)
+* [Production](https://builditproduction-twig-api.buildit.tools/ping)
+
+### Logging
+
+* [Integration](https://console.aws.amazon.com/cloudwatch/home?region=us-west-2#logStream:group=buildit-twig-integration-app-twig-api-master)
+* [Staging](https://console.aws.amazon.com/cloudwatch/home?region=us-west-2#logStream:group=buildit-twig-staging-app-twig-api-master)
+* [Production](https://console.aws.amazon.com/cloudwatch/home?region=us-west-2#logStream:group=buildit-twig-production-app-twig-api-master)
+
 
 
 ## Architectural Decisions
