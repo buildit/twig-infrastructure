@@ -51,12 +51,15 @@ deps:
 
 # Destroy dependency S3 buckets, only destroy if empty
 delete-deps:
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.db-couch.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
-	# @aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
+	@if [ ! -f DeleteVersionedS3Bucket.jar ]; then \
+		curl -O https://s3.amazonaws.com/baremetal-rig-helpers/DeleteVersionedS3Bucket.jar; \
+	fi
+	@java -jar DeleteVersionedS3Bucket.jar rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
+	@java -jar DeleteVersionedS3Bucket.jar rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
+	@java -jar DeleteVersionedS3Bucket.jar rig.${OWNER}.${PROJECT}.${REGION}.db-couch.${ENV}
+	@java -jar DeleteVersionedS3Bucket.jar rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
+	# @java -jar DeleteVersionedS3Bucket.jar rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
+	@java -jar DeleteVersionedS3Bucket.jar rig.${OWNER}.${PROJECT}.${REGION}.build
 
 ## Creates Foundation and Build
 
@@ -119,7 +122,7 @@ create-db: upload-db
 create-environment: create-foundation create-compute create-db
 
 ## Create new CF Build pipeline stack
-create-build: upload-build
+create-build: upload-build upload-lambdas
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -139,6 +142,9 @@ create-build: upload-build
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
+			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
+			"ParameterKey=Project,ParameterValue=${PROJECT}" \
+			"ParameterKey=Owner,ParameterValue=${OWNER}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -244,6 +250,9 @@ update-build: upload-build
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
+			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
+			"ParameterKey=Project,ParameterValue=${PROJECT}" \
+			"ParameterKey=Owner,ParameterValue=${OWNER}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -431,6 +440,13 @@ upload-db:
 upload-build:
 	@aws s3 cp --recursive cloudformation/build/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build/templates/
 
+upload-lambdas:
+	@pwd=$(shell pwd)
+	@cd lambdas && zip handlers.zip *.js
+	@cd ${pwd}
+	@aws s3 cp lambdas/handlers.zip s3://rig.${OWNER}.${PROJECT}.${REGION}.build/lambdas/
+	@rm lambdas/handlers.zip
+
 check-env:
 ifndef OWNER
 	$(error OWNER is undefined, should be in file .make)
@@ -480,7 +496,6 @@ help:
 		*) \
 			echo "\n${.YELLOW}[Cancelled]${.CLEAR}" && exit 1 ;; \
 	esac
-
 
 .make:
 	@touch .make

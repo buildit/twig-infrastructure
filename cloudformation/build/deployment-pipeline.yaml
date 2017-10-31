@@ -53,14 +53,21 @@ Parameters:
   HealthCheckPath:
     Type: String
 
-  SlackChannel:
-    Description: Slack channel (no \#) to post to
+  SlackWebhook:
     Type: String
-    Default: ""
+
+  Project:
+    Type: String
+
+  Owner:
+    Type: String
 
   NotificationEmailAddressBuild:
     Description: Email address to send build notifications to
     Type: String
+
+Conditions:
+  WebhookSpecified: !Not [ !Equals [ !Ref SlackWebhook, "" ] ]
 
 Mappings:
   EnvironmentDefaults:
@@ -104,6 +111,34 @@ Resources:
                   - elasticloadbalancing:*
                   - logs:*
                   - cloudwatch:*
+
+  LambdaNotifcationExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: WebhookSpecified
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: arn:aws:logs:*:*:*
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+              - Resource: arn:aws:codepipeline:*
+                Effect: Allow
+                Action:
+                  - codepipeline:GetPipelineExecution
+
 
   CodeBuildServiceRole:
     DependsOn: CloudFormationExecutionRole
@@ -210,8 +245,8 @@ Resources:
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
             Value: !Ref GitHubBranch
-          - Name: REPORTS_BUCKET
-            Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}/reports"
+          - Name: BUILD_BUCKET
+            Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}"
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'build' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
@@ -481,64 +516,83 @@ Resources:
                 - Name: ProductionEnvironment
               RunOrder: 3
 
-
-  EventRuleBuild:
-    Type: "AWS::Events::Rule"
+  LambdaNotifications:
+    Type: AWS::Lambda::Function
+    Condition: WebhookSpecified
     Properties:
-      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-build-rule"
-      Description: "CloudWatch Event Rule to trap build status and send to SNS for eventual delivery to subscribers."
+      Handler: BuildNotification.handler
+      Role:
+        !GetAtt LambdaNotifcationExecutionRole.Arn
+      Code:
+        S3Bucket: !Sub "${BuildArtifactsBucket}"
+        S3Key: lambdas/handlers.zip
+      Runtime: nodejs6.10
+      Timeout: 5
+      Environment:
+        Variables:
+          BRANCH: !Ref GitHubBranch
+          HOOK_URL: !Ref SlackWebhook
+          TARGET_STAGES: Staging;Production
+          REPO: !Ref GitHubRepo
+          PROJECT: !Ref Project
+          OWNER: !Ref Owner
+
+  EventRuleBuildFailures:
+    Type: "AWS::Events::Rule"
+    Condition: WebhookSpecified
+    Properties:
+      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-build-fail-rule"
+      Description: "Traps stage failures and notifies slack"
       EventPattern:
         source:
-          - "aws.codebuild"
-        detail-type:
-          - "CodeBuild Build State Change"
+          - "aws.codepipeline"
         detail:
-          build-status:
-            - SUCCEEDED
+          state:
             - FAILED
-          project-name:
-            - !Ref CodeBuildProject
+          pipeline:
+            - Ref: Pipeline
       State: "ENABLED"
       Targets:
-        - Arn:
-            Fn::ImportValue: !Sub "${AWS::StackName}--SNS--Topic--build"
-          Id: BuildResultsSns
-          InputTransformer:
-            InputPathsMap:
-              build-id: "$.detail.build-id"
-              project-name: "$.detail.project-name"
-              build-status: "$.detail.build-status"
-              build-log-link: "$.detail.additional-information.logs.deep-link"
-            InputTemplate: '"<project-name> build <build-status>.  Log:  <build-log-link>"'
+        - Arn: !GetAtt LambdaNotifications.Arn
+          Id: !Sub "${AWS::StackName}"
 
-  EventRuleTest:
+  EventRuleBuildSuccesses:
     Type: "AWS::Events::Rule"
+    Condition: WebhookSpecified
     Properties:
-      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-test-rule"
-      Description: "CloudWatch Event Rule to trap test status and send to SNS for eventual delivery to subscribers."
+      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-build-pass-rule"
+      Description: "Traps stage successes and notifies slack"
       EventPattern:
         source:
-          - "aws.codebuild"
-        detail-type:
-          - "CodeBuild Build State Change"
+          - "aws.codepipeline"
         detail:
-          build-status:
+          state:
             - SUCCEEDED
-            - FAILED
-          project-name:
-            - !Ref CodeBuildProjectTest
+          pipeline:
+            - Ref: Pipeline
+          stage:
+            - Staging
+            - Production
       State: "ENABLED"
       Targets:
-        - Arn:
-            Fn::ImportValue: !Sub "${AWS::StackName}--SNS--Topic--build"
-          Id: BuildResultsSns
-          InputTransformer:
-            InputPathsMap:
-              build-id: "$.detail.build-id"
-              project-name: "$.detail.project-name"
-              build-status: "$.detail.build-status"
-              build-log-link: "$.detail.additional-information.logs.deep-link"
-            InputTemplate: '"<project-name> E2E test <build-status>.  Log:  <build-log-link>"'
+        - Arn: !GetAtt LambdaNotifications.Arn
+          Id: !Sub "${AWS::StackName}"
+
+  PermissionForFailEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaNotifications
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt EventRuleBuildFailures.Arn
+
+  PermissionForPassEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaNotifications
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt EventRuleBuildSuccesses.Arn
 
   Sns:
     Type: AWS::CloudFormation::Stack
