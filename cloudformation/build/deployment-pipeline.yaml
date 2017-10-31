@@ -69,9 +69,6 @@ Parameters:
 Conditions:
   WebhookSpecified: !Not [ !Equals [ !Ref SlackWebhook, "" ] ]
 
-Conditions:
-  WebhookSpecified: !Not [ !Equals [ !Ref SlackWebhook, "" ] ]
-
 Mappings:
   EnvironmentDefaults:
     integration:
