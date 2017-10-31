@@ -48,6 +48,11 @@ function generateStatusAttachment(event) {
       color: `${colorMap[event.detail.state]}`,
       fields: [
         {
+          title: 'Repo',
+          value: process.env.REPO,
+          short: true
+        },
+        {
           title: 'Branch',
           value: process.env.BRANCH,
           short: true
@@ -91,6 +96,11 @@ function getText(event) {
   return returnMessage.split('<stage>').join(stage);
 }
 
+function capitalize(word) {
+  const firstLetter = word[0];
+  const restOfTheWord = word.substring(1);
+  return `${firstLetter.toUpperCase()}${restOfTheWord}`;
+}
 
 
 function getMessage(event) {
@@ -103,8 +113,8 @@ function getMessage(event) {
     if (process.env.SLACK_CHANNEL) {
       returner.channel = process.env.SLACK_CHANNEL;
     }
-    if (process.env.SLACK_USERNAME) {
-      returner.username = process.env.SLACK_USERNAME;
+    if (process.env.OWNER && process.env.PROJECT) {
+      returner.username = `${capitalize(process.env.OWNER)}'s ${capitalize(process.env.PROJECT)} Pipeline`;
     }
     return returner;
   });
@@ -156,7 +166,7 @@ function processEvent(event, callback) {
   callback(null);
 }
 
-exports.SlackNotification = (event, context, callback) => {
+exports.handler = (event, context, callback) => {
     if (process.env.HOOK_URL) {
         processEvent(event, callback);
     } else {

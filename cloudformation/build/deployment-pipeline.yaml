@@ -56,12 +56,18 @@ Parameters:
   SlackWebhook:
     Type: String
 
-  SlackUsername:
+  Project:
+    Type: String
+
+  Owner:
     Type: String
 
   NotificationEmailAddressBuild:
     Description: Email address to send build notifications to
     Type: String
+
+Conditions:
+  WebhookSpecified: !Not [ !Equals [ !Ref SlackWebhook, "" ] ]
 
 Conditions:
   WebhookSpecified: !Not [ !Equals [ !Ref SlackWebhook, "" ] ]
@@ -517,12 +523,12 @@ Resources:
     Type: AWS::Lambda::Function
     Condition: WebhookSpecified
     Properties:
-      Handler: index.SlackNotification
+      Handler: BuildNotification.handler
       Role:
         !GetAtt LambdaNotifcationExecutionRole.Arn
       Code:
         S3Bucket: !Sub "${BuildArtifactsBucket}"
-        S3Key: lambdas/LambdaNotifications.zip
+        S3Key: lambdas/handlers.zip
       Runtime: nodejs6.10
       Timeout: 5
       Environment:
@@ -530,7 +536,9 @@ Resources:
           BRANCH: !Ref GitHubBranch
           HOOK_URL: !Ref SlackWebhook
           TARGET_STAGES: Staging;Production
-          SLACK_USERNAME: !Ref SlackUsername
+          REPO: !Ref GitHubRepo
+          PROJECT: !Ref Project
+          OWNER: !Ref Owner
 
   EventRuleBuildFailures:
     Type: "AWS::Events::Rule"

@@ -143,7 +143,8 @@ create-build: upload-build upload-lambdas
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
-			"ParameterKey=SlackUsername,ParameterValue=${OWNER}->${PROJECT}->${REPO}" \
+			"ParameterKey=Project,ParameterValue=${PROJECT}" \
+			"ParameterKey=Owner,ParameterValue=${OWNER}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -230,7 +231,7 @@ update-db: upload-db
 update-environment: update-foundation update-compute update-db
 
 ## Update existing Build Pipeline CF Stack
-update-build: upload-build upload-lambdas
+update-build: upload-build
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/build/deployment-pipeline.yaml" \
@@ -250,7 +251,8 @@ update-build: upload-build upload-lambdas
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 			"ParameterKey=HealthCheckPath,ParameterValue=${HEALTH_CHECK_PATH}" \
 			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
-			"ParameterKey=SlackUsername,ParameterValue=${OWNER}->${PROJECT}->${REPO}" \
+			"ParameterKey=Project,ParameterValue=${PROJECT}" \
+			"ParameterKey=Owner,ParameterValue=${OWNER}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -440,10 +442,10 @@ upload-build:
 
 upload-lambdas:
 	@pwd=$(shell pwd)
-	@cd lambdas && zip LambdaNotifications.zip *.js
+	@cd lambdas && zip handlers.zip *.js
 	@cd ${pwd}
-	@aws s3 cp lambdas/LambdaNotifications.zip s3://rig.${OWNER}.${PROJECT}.${REGION}.build/lambdas/
-	@rm lambdas/LambdaNotifications.zip
+	@aws s3 cp lambdas/handlers.zip s3://rig.${OWNER}.${PROJECT}.${REGION}.build/lambdas/
+	@rm lambdas/handlers.zip
 
 check-env:
 ifndef OWNER
