@@ -525,7 +525,8 @@ Resources:
         !GetAtt LambdaNotifcationExecutionRole.Arn
       Code:
         S3Bucket: !Sub "${BuildArtifactsBucket}"
-        S3Key: lambdas/handlers.zip
+        S3Key: !Sub lambdas/${GitHubRepo}-handlers.zip
+        S3ObjectVersion: <LambdaVersion>
       Runtime: nodejs6.10
       Timeout: 5
       Environment:
@@ -536,6 +537,7 @@ Resources:
           REPO: !Ref GitHubRepo
           PROJECT: !Ref Project
           OWNER: !Ref Owner
+          LAMBDA_VERSION: <LambdaVersion> # Don't actually need this but it forces the CFN to update the Lambda environment.
 
   EventRuleBuildFailures:
     Type: "AWS::Events::Rule"
