@@ -8,6 +8,7 @@ const targetStage = process.env.TARGET_STAGE;
 
 const displayReports = process.env.REPO === 'twig'
 const displayScreenshots = process.env.REPO === 'twig';
+const mayNotExist = '(If They Exist)';
 
 let stageMessages;
 
@@ -74,16 +75,16 @@ function generateStatusAttachment(event) {
     }
     if (displayReports) {
       returner.fields.push({
-        title: 'Reports',
-        value: `<${process.env.REPORTS_URL}|(If they exist)>`,
+        title: 'Unit Tests',
+        value: `<${process.env.REPORTS_URL}|${event.detail.state === 'FAILED' ? mayNotExist : 'Coverage Reports' }>`,
         short: true
       })
     }
 
     if (displayScreenshots) {
       returner.fields.push({
-        title: 'Screenshots',
-        value: `<${process.env.SCREENSHOTS_URL}|(If they exist)>`,
+        title: 'E2E Tests',
+        value: `<${process.env.SCREENSHOTS_URL}|${event.detail.state === 'FAILED' ? mayNotExist : 'Screenshots'>`,
         short: true
       })
     }
