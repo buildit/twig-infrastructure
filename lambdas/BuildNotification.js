@@ -84,7 +84,7 @@ function generateStatusAttachment(event) {
     if (displayScreenshots) {
       returner.fields.push({
         title: 'E2E Tests',
-        value: `<${process.env.SCREENSHOTS_URL}|${event.detail.state === 'FAILED' ? mayNotExist : 'Screenshots'>`,
+        value: `<${process.env.SCREENSHOTS_URL}|${event.detail.state === 'FAILED' ? mayNotExist : 'Screenshots'}>`,
         short: true
       })
     }
