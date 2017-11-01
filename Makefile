@@ -231,7 +231,7 @@ update-db: upload-db
 update-environment: update-foundation update-compute update-db
 
 ## Update existing Build Pipeline CF Stack
-update-build: new-deployment-template upload-build upload-lambdas force-lambda-update
+update-build: new-deployment-template upload-build upload-lambdas
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
 								--region ${REGION} \
 		--template-body "file://cloudformation/build/deployment-pipeline.yaml" \

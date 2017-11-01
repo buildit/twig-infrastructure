@@ -537,6 +537,8 @@ Resources:
           REPO: !Ref GitHubRepo
           PROJECT: !Ref Project
           OWNER: !Ref Owner
+          REPORTS_URL: !Sub "http://${BuildArtifactsBucket}.s3-website-${AWS::Region}.amazonaws.com/${AWS::StackName}/reports"
+          SCREENSHOTS_URL: !Sub "http://${BuildArtifactsBucket}.s3-website-${AWS::Region}.amazonaws.com/${AWS::StackName}/screenshots"
           LAMBDA_VERSION: <LambdaVersion> # Don't actually need this but it forces the CFN to update the Lambda environment.
 
   EventRuleBuildFailures:
