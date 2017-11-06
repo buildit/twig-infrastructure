@@ -3,3 +3,5 @@
 /.*_ami_id
 /created-user-out-credentials.json
 /DeleteVersionedS3Bucket.jar
+.DS_Store
+cloudformation/build/deployment-pipeline.yaml

@@ -6,6 +6,10 @@ const https = require('https');
 
 const targetStage = process.env.TARGET_STAGE;
 
+const displayReports = process.env.REPO === 'twig'
+const displayScreenshots = process.env.REPO === 'twig';
+const mayNotExist = '(If They Exist)';
+
 let stageMessages;
 
 const colorMap = {
@@ -43,7 +47,7 @@ function getCommitInfo(event) {
 function generateStatusAttachment(event) {
   return getCommitInfo(event)
   .then(commitInfo => {
-    return {
+    const returner = {
       title: `Build ${event.detail.state}`,
       color: `${colorMap[event.detail.state]}`,
       fields: [
@@ -69,6 +73,22 @@ function generateStatusAttachment(event) {
         }
       ]
     }
+    if (displayReports) {
+      returner.fields.push({
+        title: 'Unit Tests',
+        value: `<${process.env.REPORTS_URL}|${event.detail.state === 'FAILED' ? mayNotExist : 'Coverage Reports' }>`,
+        short: true
+      })
+    }
+
+    if (displayScreenshots) {
+      returner.fields.push({
+        title: 'E2E Tests',
+        value: `<${process.env.SCREENSHOTS_URL}|${event.detail.state === 'FAILED' ? mayNotExist : 'Screenshots'}>`,
+        short: true
+      })
+    }
+    return returner;
   });
 }
 

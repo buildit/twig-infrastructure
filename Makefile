@@ -1,5 +1,6 @@
 include .make
 
+
 export DOMAIN ?= example.tld
 export KEY_NAME ?= ""
 export OWNER ?= rig-test-bucket
@@ -11,7 +12,6 @@ export CERT_ARN ?= need-to-set-arn
 
 export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
-
 
 ## Create dependency S3 buckets
 # Used for storage of Foundation configs, InfraDev storage and Build artifacts
@@ -122,7 +122,7 @@ create-db: upload-db
 create-environment: create-foundation create-compute create-db
 
 ## Create new CF Build pipeline stack
-create-build: upload-build upload-lambdas
+create-build: new-deployment-template upload-build upload-lambdas
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -231,9 +231,9 @@ update-db: upload-db
 update-environment: update-foundation update-compute update-db
 
 ## Update existing Build Pipeline CF Stack
-update-build: upload-build
+update-build: new-deployment-template upload-build upload-lambdas
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
-                --region ${REGION} \
+								--region ${REGION} \
 		--template-body "file://cloudformation/build/deployment-pipeline.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
@@ -441,11 +441,13 @@ upload-build:
 	@aws s3 cp --recursive cloudformation/build/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build/templates/
 
 upload-lambdas:
-	@pwd=$(shell pwd)
-	@cd lambdas && zip handlers.zip *.js
-	@cd ${pwd}
-	@aws s3 cp lambdas/handlers.zip s3://rig.${OWNER}.${PROJECT}.${REGION}.build/lambdas/
-	@rm lambdas/handlers.zip
+	@cd ./lambdas; zip ${REPO}-handlers.zip *.js
+	@sed -i '' "s/<LambdaVersion>/$$(aws s3api put-object --bucket rig.${OWNER}.${PROJECT}.${REGION}.build --key lambdas/${REPO}-handlers.zip --body './lambdas/${REPO}-handlers.zip' | jq '.VersionId')/" \
+		cloudformation/build/deployment-pipeline.yaml
+	@rm ./lambdas/${REPO}-handlers.zip
+
+new-deployment-template:
+	cp cloudformation/build/deployment-pipeline-template.yaml cloudformation/build/deployment-pipeline.yaml
 
 check-env:
 ifndef OWNER
