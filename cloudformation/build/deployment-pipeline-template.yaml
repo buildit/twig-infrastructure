@@ -245,8 +245,8 @@ Resources:
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
             Value: !Ref GitHubBranch
-          - Name: BUILD_BUCKET
-            Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}"
+          - Name: REPORTS_BUCKET
+            Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}/reports"
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'build' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
@@ -269,8 +269,8 @@ Resources:
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
             Value: !Ref GitHubBranch
-          - Name: SCREENSHOTS_BUCKET
-            Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}/screenshots"
+          - Name: REPORTS_BUCKET
+            Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}/reports"
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'e2e', 'test' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
