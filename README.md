@@ -248,10 +248,10 @@ Obviously, the templates can be updated if necessary.
 
 ## Application specifics
 
-| Application | ContainerPort | ListenerRulePriority 
-| :---        | :---          | :---
-| twig-api    | 3000          | 100                  
-| twig        | 80            | 200 
+| Application | ContainerPort | ListenerRulePriority | HealthCheckPath | ContainerMemory 
+| :---        | :---          | :---                 | :---            | :---          
+| twig-api    | 3000          | 100                  | '/ping'         | 512 (lowest for FARGATE)
+| twig        | 80            | 200                  | '/'             | 512 (lowest for FARGATE)
 
 
 ## Maintenance
