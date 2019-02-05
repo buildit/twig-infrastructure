@@ -3,6 +3,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: AWS Foundation Template
 
+
 Parameters:
   Environment:
     Description: Stack environment
@@ -26,14 +27,14 @@ Parameters:
     Description: Public Domain Name for sites and services created by this stack.
     Type: String
 
-  NotificationEmailAddressOps:
-    Description: Email address to send ops notifications to
-    Type: String
-
-  ElbCertificateArn:
-    Description: ARN for certificate to attach to the ELB(s).
+  EmailAddress:
+    Description: Email address to send notifications to
     Type: String
     Default: ""
+
+  DomainCertGuid:
+    Description: GUID for the Cert for the Domain
+    Type: String
 
   CreateHostedZone:
     Default: no
@@ -49,17 +50,17 @@ Conditions:
 Mappings:
   EnvironmentToCidr:
     integration:
-      CidrBlock: "10.10.0.0/16"
-      SubnetPublicCidrBlocks: "10.10.1.0/24,10.10.2.0/24"
-      SubnetPrivateCidrBlocks: "10.10.11.0/24,10.10.12.0/24"
+      CidrBlock: "10.1.0.0/16"
+      SubnetPublicCidrBlocks: "10.1.1.0/24,10.1.2.0/24"
+      SubnetPrivateCidrBlocks: "10.1.11.0/24,10.1.12.0/24"
     staging:
-      CidrBlock: "10.20.0.0/16"
-      SubnetPublicCidrBlocks: "10.20.1.0/24,10.20.2.0/24"
-      SubnetPrivateCidrBlocks: "10.20.11.0/24,10.20.12.0/24"
+      CidrBlock: "10.2.0.0/16"
+      SubnetPublicCidrBlocks: "10.2.1.0/24,10.2.2.0/24"
+      SubnetPrivateCidrBlocks: "10.2.11.0/24,10.2.12.0/24"
     production:
-      CidrBlock: "10.30.0.0/16"
-      SubnetPublicCidrBlocks: "10.30.1.0/24,10.30.2.0/24"
-      SubnetPrivateCidrBlocks: "10.30.11.0/24,10.30.12.0/24"
+      CidrBlock: "10.3.0.0/16"
+      SubnetPublicCidrBlocks: "10.3.1.0/24,10.3.2.0/24"
+      SubnetPrivateCidrBlocks: "10.3.11.0/24,10.3.12.0/24"
 
 Resources:
   Vpc:
@@ -67,11 +68,11 @@ Resources:
     Properties:
       Parameters:
         CidrBlock: !FindInMap [ EnvironmentToCidr, !Ref Environment, CidrBlock ]
-        Environment: !Ref Environment
         FoundationStackName: !Sub ${AWS::StackName}
         Region: !Sub ${AWS::Region}
         SubnetPrivateCidrBlocks: !FindInMap [ EnvironmentToCidr, !Ref Environment, SubnetPrivateCidrBlocks ]
         SubnetPublicCidrBlocks: !FindInMap [ EnvironmentToCidr, !Ref Environment, SubnetPublicCidrBlocks ]
+        InternalHostedZoneName: !Sub "${ProjectName}.internal"
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/vpc.yaml
       TimeoutInMinutes: 60
 
@@ -80,7 +81,6 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
-        Environment: !Ref Environment
         FoundationStackName: !Sub ${AWS::StackName}
         PublicDomainName: !Ref PublicDomainName
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/dns.yaml
@@ -104,16 +104,15 @@ Resources:
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/load-balancer.yaml
       Parameters:
         FoundationStackName: !Sub ${AWS::StackName}
-        CertificateArn: !Ref ElbCertificateArn
+        DomainCertGuid: !Ref DomainCertGuid
 
   Sns:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/sns.yaml
       Parameters:
-        ParentStackName: !Sub ${AWS::StackName}
-        NotificationEmailAddress: !Ref NotificationEmailAddressOps
-        Purpose: ops
+        FoundationStackName: !Sub ${AWS::StackName}
+        EmailAddress: !Ref EmailAddress
 
 Outputs:
   FoundationVpcId:
@@ -125,4 +124,3 @@ Outputs:
     Value: !GetAtt LoadBalancer.Outputs.SecurityGroup
     Export:
       Name: !Sub "${AWS::StackName}--ALB--SG"
-

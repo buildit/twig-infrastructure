@@ -6,15 +6,16 @@ const https = require('https');
 
 const targetStage = process.env.TARGET_STAGE;
 
-const displayReports = process.env.REPO === 'twig'
-const displayScreenshots = process.env.REPO === 'twig';
-const mayNotExist = '(If They Exist)';
-
 let stageMessages;
 
 const colorMap = {
   FAILED: 'danger',
   SUCCEEDED: 'good',
+}
+
+const emoticonMap = {
+  FAILED: ':skull:',
+  SUCCEEDED: ':success:',
 }
 
 function callbackToPromise(resolve, reject) {
@@ -48,7 +49,7 @@ function generateStatusAttachment(event) {
   return getCommitInfo(event)
   .then(commitInfo => {
     const returner = {
-      title: `Build ${event.detail.state}`,
+      title: `Build ${event.detail.state} ${emoticonMap[event.detail.state]}`,
       color: `${colorMap[event.detail.state]}`,
       fields: [
         {
@@ -69,25 +70,21 @@ function generateStatusAttachment(event) {
         {
           title: 'Commit Message',
           value: commitInfo.commitMessage,
-          short: false
+          short: true
         }
       ]
     }
-    if (displayReports) {
-      returner.fields.push({
-        title: 'Unit Tests',
-        value: `<${process.env.REPORTS_URL}|${event.detail.state === 'FAILED' ? mayNotExist : 'Coverage Reports' }>`,
-        short: true
-      })
-    }
+    returner.fields.push({
+      title: 'Reports',
+      value: `<${process.env.REPORTS_URL}|Build Reports>`,
+      short: true
+    })
+    returner.fields.push({
+      title: 'Build Pipeline',
+      value: `<${process.env.PIPELINE_URL}|CodePipeline Console>`,
+      short: true
+    })
 
-    if (displayScreenshots) {
-      returner.fields.push({
-        title: 'E2E Tests',
-        value: `<${process.env.SCREENSHOTS_URL}|${event.detail.state === 'FAILED' ? mayNotExist : 'Screenshots'}>`,
-        short: true
-      })
-    }
     return returner;
   });
 }

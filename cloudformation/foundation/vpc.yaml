@@ -7,12 +7,8 @@ Parameters:
   CidrBlock:
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3}).(\\d{1,3}).(\\d{1,3})\\/(\\d{1,2})"
     ConstraintDescription: Full Cidr block with mask bits
-    Default: 10.10.0.0/16
+    Default: 10.1.0.0/16
     Description: VPC Cidr Block
-    Type: String
-
-  Environment:
-    Description: Stack environment
     Type: String
 
   FoundationStackName:
@@ -34,7 +30,6 @@ Parameters:
   InternalHostedZoneName:
     Description: The DNS name to use for the internally-resolved zone associated with this VPC.
     Type: String
-    Default:  twig.internal.
 
 Resources:
   VPC:
@@ -201,6 +196,13 @@ Outputs:
     Value:
       Ref: InternalDns
 
+  InternalHostedZoneName:
+    Description: The DNS Name for the internally-resolved DNS.
+    Export:
+      Name: !Sub "${FoundationStackName}--InternalHostedZoneName"
+    Value:
+      Ref: InternalHostedZoneName
+
   InternetGateway:
     Description: The ID of the newly created Internet Gateway
     Export:
@@ -269,10 +271,3 @@ Outputs:
       Name: !Sub "${FoundationStackName}--VpcId"
     Value:
       Ref: VPC
-
-  InternalHostedZoneName:
-    Description: The DNS Name for the internally-resolved DNS.
-    Export:
-      Name: !Sub "${FoundationStackName}--InternalHostedZoneName"
-    Value:
-      Ref: InternalHostedZoneName

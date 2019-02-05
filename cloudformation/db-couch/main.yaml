@@ -4,17 +4,12 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: Database subnets and instance.
 
 Parameters:
-
   FoundationStackName:
     Description: Foundation Stack Name
     Type: String
 
   ComputeStackName:
     Description: Compute Stack Name
-    Type: String
-
-  PublicDomainName:
-    Description: Public Domain Name for sites and services created by this stack.
     Type: String
 
   InstanceType:
@@ -36,11 +31,11 @@ Parameters:
 Mappings:
   EnvironmentToCidr:
     integration:
-      DbSubnetCidrBlocks: ["10.10.100.0/24","10.10.110.0/24"]
+      DbSubnetCidrBlocks: ["10.1.100.0/24","10.1.110.0/24"]
     staging:
-      DbSubnetCidrBlocks: ["10.20.100.0/24","10.20.110.0/24"]
+      DbSubnetCidrBlocks: ["10.2.100.0/24","10.2.110.0/24"]
     production:
-      DbSubnetCidrBlocks: ["10.30.100.0/24","10.30.110.0/24"]
+      DbSubnetCidrBlocks: ["10.3.100.0/24","10.3.110.0/24"]
 
   AWSRegionToCouchAMI:
     us-east-1:
@@ -54,102 +49,7 @@ Mappings:
       staging: ami-54e1222c
       production: ami-54e1222c
 
-
 Resources:
-
-  CouchDnsName:
-      Type: AWS::Route53::RecordSet
-      Properties:
-        HostedZoneId:
-          Fn::ImportValue: !Sub "${FoundationStackName}--InternalDns"
-        Comment: DNS name for CouchDb.
-        Name: !Join
-          - '.'
-          - - !Sub "couchdb-${Environment}"
-            - Fn::ImportValue: !Sub "${FoundationStackName}--InternalHostedZoneName"
-        Type: CNAME
-        TTL: '300'
-        ResourceRecords:
-        - !GetAtt CouchEc2Instance.PrivateDnsName
-
-  SecurityGroup:
-    Type: "AWS::EC2::SecurityGroup"
-    Properties:
-      GroupDescription: !Sub ${AWS::StackName}-app-couchdb
-      SecurityGroupIngress:
-        - SourceSecurityGroupId:
-            Fn::ImportValue: !Sub "${ComputeStackName}--AppSecurityGroup"
-          IpProtocol: TCP
-          FromPort: 5984
-          ToPort: 5984
-      VpcId:
-        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
-
-  CouchDbBackupBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    Properties:
-      VersioningConfiguration:
-        Status: Enabled
-
-  CouchEc2Role:
-    Type: "AWS::IAM::Role"
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          -
-            Effect: "Allow"
-            Principal:
-              Service:
-                - "ec2.amazonaws.com"
-            Action:
-              - "sts:AssumeRole"
-      Path: "/"
-      Policies:
-        -
-          PolicyName: "root"
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              -
-                Effect: "Allow"
-                Action: ["s3:Put*", "s3:List*"]
-                Resource: [!Sub "${CouchDbBackupBucket.Arn}", !Sub "${CouchDbBackupBucket.Arn}/*"]
-
-  CouchEc2RoleInstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Path: /
-      Roles:
-        - !Ref CouchEc2Role
-
-  # This instance and backup approach works because the AMI is assumed to be
-  # a CouchDB AMI from the prior Twig riglet, with AWS CLI installed, too.
-  # TODO:  create everything "from scratch" in the UserData script, including
-  # restore from S3 (optional).
-  CouchEc2Instance:
-    Type: "AWS::EC2::Instance"
-    Properties:
-      ImageId: !FindInMap [ AWSRegionToCouchAMI, !Ref "AWS::Region", !Ref Environment ]
-      KeyName: !Ref SshKeyName
-      InstanceType: !Ref InstanceType
-      IamInstanceProfile: !Ref CouchEc2RoleInstanceProfile
-      Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName}--CouchDb"
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: "false"
-          SubnetId: !Ref DbSubnetPrivateB
-          DeviceIndex: "0"
-          GroupSet:
-            - Ref: "SecurityGroup"
-      UserData:
-        Fn::Base64:
-          !Sub |
-            #!/bin/bash
-            echo "0  2  *  *  * root  aws s3 sync /usr/local/var/lib/couchdb/ s3://${CouchDbBackupBucket} --region ${AWS::Region} --delete" > /etc/cron.d/couchdb-backup
-
   DbSubnetPrivateA:
     Type: AWS::EC2::Subnet
     Properties:
@@ -188,30 +88,105 @@ Resources:
       RouteTableId:
         Fn::ImportValue: !Sub "${FoundationStackName}--RouteTablePrivateB"
 
+  DatabaseInternalDns:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--InternalDns"
+      Comment: DNS for CouchDb.
+      RecordSets:
+      - Name: !Join
+          - '.'
+          - - "couch"
+            - Fn::ImportValue: !Sub "${FoundationStackName}--InternalHostedZoneName"
+        Type: CNAME
+        TTL: '300'
+        ResourceRecords:
+        - !GetAtt DatabaseEc2Instance.PrivateDnsName
+
+  DatabaseSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Sub ${AWS::StackName}-db
+      SecurityGroupIngress:
+        - SourceSecurityGroupId:
+            Fn::ImportValue: !Sub "${ComputeStackName}--AppSecurityGroup"
+          IpProtocol: TCP
+          FromPort: 5984
+          ToPort: 5984
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+
+  DatabaseBackupBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+
+  DatabaseEc2Role:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "root"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action: ["s3:Put*", "s3:List*"]
+                Resource: [!Sub "${DatabaseBackupBucket.Arn}", !Sub "${DatabaseBackupBucket.Arn}/*"]
+
+  DatabaseEc2RoleInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref DatabaseEc2Role
+
+  # This instance and backup approach works because the AMI is assumed to be
+  # a CouchDB AMI from the prior Twig riglet, with AWS CLI installed, too.
+  # TODO:  create everything "from scratch" in the UserData script, including
+  # restore from S3 (optional).
+  DatabaseEc2Instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !FindInMap [ AWSRegionToCouchAMI, !Ref "AWS::Region", !Ref Environment ]
+      KeyName: !Ref SshKeyName
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref DatabaseEc2RoleInstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}--CouchDb"
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: false
+          SubnetId: !Ref DbSubnetPrivateB
+          DeviceIndex: "0"
+          GroupSet:
+            - Ref: DatabaseSecurityGroup
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            echo "0  2  *  *  * root  aws s3 sync /usr/local/var/lib/couchdb/ s3://${DatabaseBackupBucket} --region ${AWS::Region} --delete" > /etc/cron.d/couchdb-backup
+
 Outputs:
+  DatabaseInternalDns:
+    Description: Database internal DNS endpoint
+    Value: !Ref DatabaseInternalDns
 
-  DbSubnetPrivateA:
-    Description: The ID of the newly created Private Subnet in zone A
-    Export:
-      Name: !Sub "${AWS::StackName}--DbSubnetPrivateA"
-    Value:
-      Ref: DbSubnetPrivateA
-
-  DbSubnetPrivateB:
-    Description: The ID of the newly created Private Subnet in zone B
-    Export:
-      Name: !Sub "${AWS::StackName}--DbSubnetPrivateB"
-    Value:
-      Ref: DbSubnetPrivateB
-
-  CouchDnsName:
-    Description: The DNS name of the CouchDb instance.
-    Export:
-      Name: !Sub "${AWS::StackName}--CouchDbDnsName"
-    Value:
-      Ref: CouchDnsName
-
-  CouchDbBackupBucket:
-    Description: The bucket created for backups of CouchDb files.
-    Value:
-      Ref: CouchDbBackupBucket
+  DatabaseBackupBucket:
+    Description: The bucket created for backups of database files.
+    Value: !Ref DatabaseBackupBucket

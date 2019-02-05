@@ -8,7 +8,9 @@ BRANCH=${1:-master}
 function createEnvironment() {
   echo "Y" | make create-foundation ENV=${1} && \
   echo "Y" | make create-compute ENV=${1} && \
-  echo "Y" | make create-db ENV=${1}
+  echo "Y" | make create-db ENV=${1} && \
+  echo "Y" | make create-app-deps ENV=${1} && \
+  echo "Y" | make upload-app ENV=${1}
 }
 
 cat .make
@@ -18,6 +20,7 @@ read -p "Are you sure you want to proceed?  " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
+  make create-deps && \
   createEnvironment integration && \
   createEnvironment staging && \
   createEnvironment production && \
@@ -29,6 +32,7 @@ then
   echo "Y" | make create-build REPO=twig \
                     REPO_BRANCH=${BRANCH} \
                     CONTAINER_PORT=80 \
-                    HEALTH_CHECK_PATH='/' \
                     LISTENER_RULE_PRIORITY=200
+  # echo "Y" | make create-build REPO=bookit-api CONTAINER_PORT=8080 CONTAINER_MEMORY=512 LISTENER_RULE_PRIORITY=300 &&
+  # echo "Y" | make create-build REPO=bookit-client-react SUBDOMAIN=bookit CONTAINER_PORT=4200 CONTAINER_MEMORY=128 LISTENER_RULE_PRIORITY=200
 fi
