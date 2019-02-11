@@ -77,6 +77,7 @@ Conditions:
   ShouldCreateErrorLogAlarm: !Not [ !Equals [ !Ref Environment, integration ] ]
   IsFargate: !Equals [ !Ref EcsHostType, FARGATE ]
   IsEC2: !Equals [ !Ref EcsHostType, EC2 ]
+  EnableTestUser: !Equals [!Ref Environment, integration]
 
 Resources:
   TargetGroup:
@@ -336,7 +337,7 @@ Resources:
               Value: !Ref SsmEnvironmentNamespace
             # APPLICATION ENVIRONMENT VARIABLES CURRENTLY GO HERE... TODO: need a better mechanism
             - Name: ENABLE_TEST_USER
-              Value: "true"
+              Value: !If [EnableTestUser, "true", "false"]
 
 Outputs:
   ApplicationUrl:
