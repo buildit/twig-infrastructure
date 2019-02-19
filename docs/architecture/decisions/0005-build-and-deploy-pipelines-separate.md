@@ -1,4 +1,4 @@
-# 7. Split Pipeline into Distinct Build and Deployment Pipelines
+# 5. Split Pipeline into Distinct Build and Deployment Pipelines
 
 Date: 2019-01-14
 
