@@ -1,34 +1,126 @@
 # Twig AWS Riglet
 
+## Quick reference
+
+If you're looking to create a new instance of this rig, then start [here](#setup)
+
+If you're looking to maintain/update the live Buildit Twig riglet, then you'll find the following helpful:
+
+.make
+
+```ini
+OWNER = buildit-blue # or buildit-green
+PROFILE = default # or whatever appropriate on your machine
+PROJECT = twig
+REGION = us-west-2
+```
+
+SSM settings.  You can find the details under `/buildit-blue/twig` on the [AWS SSM Console](https://us-west-2.console.aws.amazon.com/systems-manager/parameters?region=us-west-2#).  You must use `couch` for the DB.  We chose to use FARGATE for ECS Host Type as a test but could choose either.
+
+```none
+/buildit-blue/twig/compute/ECS_HOST_TYPE=FARGATE
+/buildit-blue/twig/db/DB_TYPE=couch
+```
+
+Application specifics (for `create-build` and/or `update-build` targets)
+| Application | ContainerPort | ListenerRulePriority | HealthCheckPath | ContainerMemory |
+| :---        | :---          | :---                 | :---            | :---            |
+| twig-api    | 3000          | 100                  | '/ping'         | 512 (default)   |
+| twig        | 80            | 200                  | '/' (default)   | 512 (default)   |
+
+### Deployments
+
+* [Integration (blue)](https://buildit-blue-integration-twig-api.buildit.tools/ping)
+* [Staging (blue)](https://buildit-blue-staging-twig-api.buildit.tools/ping)
+* [Production (blue)](https://buildit-blue-production-twig-api.buildit.tools/ping) or [Production](https://twig-api.buildit.tools/ping)
+
+### Logging
+
+* [Integration](https://console.aws.amazon.com/cloudwatch/home?region=us-west-2#logStream:group=buildit-blue-twig-integration-app-twig-api-master)
+* [Staging](https://console.aws.amazon.com/cloudwatch/home?region=us-west-2#logStream:group=buildit-blue-twig-staging-app-twig-api-master)
+* [Production](https://console.aws.amazon.com/cloudwatch/home?region=us-west-2#logStream:group=buildit-blue-twig-production-app-twig-api-master)
+
 ## Overview
-> This is a long README.  You might consider installing this browser plugin for presenting a README TOC:  
-> https://github.com/arthurhammer/github-toc
 
-This riglet is based completely on AWS technologies.  The idea is that it should require nothing but
-the AWS CLI to fire up an operational riglet with appropriate environments and a ready-to-execute 
-build pipeline.
+This is an implementation of the [AWS Bare Metal Rig](https://github.com/buildit/digitalrig-metal-aws/).
 
-To accomplish this the following AWS technologies are leveraged:
- - _AWS CloudFormation_ (Cfn) to automate the provisioning of network, compute, and build resources
- - _AWS Command Line Interface_ (CLI) to execute Cfn commands
- - _Make_ to help simplify the use of the AWS CLI and for basic dependency management
- - A long list of Amazon services: VPC, EC2, ECS, S3, CodePipeline, CodeBuild, etc.
- 
-> This documentation cannot possibly give you everything you need to know about these technologies, 
-> so some liberties are taken with definitions and detailed usage instructions (or lack thereof).
+This codebase contains code to create and maintain a CloudFormation, AWS CodePipeline/CodeBuild/CodeDeploy powered Rig on AWS.  This riglet is based completely on AWS technologies.  The idea is that it should require nothing but the AWS CLI to fire up an operational riglet with appropriate environments and a ready-to-execute build pipeline.
 
+## The big picture(s)
 
-## Architecture
+This guide has all the steps for creating an "AWS Bare Metal riglet instance".  The riglet is capable of doing builds, pushing to docker and deploying the docker images using blue/green deployment in to ECS.
+
+The major components of this riglet are:
+
+* A "foundational" stack running in Amazon:  1 of these is created for each environment (integration, staging, production, etc)
+  * a VPC with the appropriate network elements (gateways, NAT)
+  * a shared Application Load Balancer (ALB) - listens on ports 80 & 443
+  * a shared EC2 Container Server (ECS) Cluster (using either EC2 hosts or Fargate).
+  * (optional) an RDS Aurora or CouchDB Database
+  * 4 shared S3 buckets to store CloudFormation templates and scripts
+    * a "foundation" bucket to store templates associated w/ the foundational stack
+    * a "build" bucket to store build artifacts for the CodePipeline below (this is shared across all pipelines)
+    * an "app" bucket to store templates associated w/ the app stack below
+* A "deployment-pipeline" stack: 1 stack per branch per repo
+  * an ECS Repository (ECR)
+  * Two CodePipeline pipelines that do the following:
+    * Build Pipeline
+      * Polls for changes to the branch
+      * Executes CodeBuild build - see buildspec.yml in the project
+        * Installs dependencies (JDK, Node, etc)
+        * Executes build (download libraries, build, test, lint, package docker image)
+        * Pushes the image to the ECR
+    * Deploy Pipeline
+      * Listens for recently completed builds and updated application templates in S3
+      * Creates/Updates the "app" stack below for the integration environment
+        * This also deploys the built Docker image to the ECS cluster
+      * Executes CodeBuild E2E build - see buildspec.e2e.yaml
+      * Creates/Updates the "app" stack below for the staging environment
+      * Creates/Updates an "app" stack change set for the production environment
+      * Waits for review/approval
+      * Executes the "app" stack change set which creates/updates/deploys for the production environment
+  * IAM roles to make it all work
+* An "app" stack: 1 stack per branch per repo per environment - requires "foundation" stack to already exist and ECR repository with built images
+  * a ALB target group
+  * 2 ALB listener rules (http & https) that route to the target group based on the HOST header
+  * a Route53 DNS entry pointing to the ALB
+  * (optionally) a Route53 DNS entry without the environment name (for production)
+  * an ECS Service which ties the Target Group to the Task Definition
+  * an ECS Task Definition which runs the specific tag Docker image
+  * IAM roles to make it all work
+
+The all infrastructure are set up and maintained using AWS CloudFormation.  CodeBuild is configured simply by updating the buildspec.yml file in each application project.
+
+The whole shebang:
+
+![alt text](docs/architecture/diagrams/digitalrig-metal-aws-riglet-aws-hi-level.png)
+
+Single Environment (more detail):
+
+![alt text](docs/architecture/diagrams/aws-bare-foundation.png)
+
+CodePipeline (more detail):
+
+![Code Pipeline](docs/architecture/diagrams/digitalrig-metal-aws-riglet-codepipeline-detail.png)
+
+## Architectural Decisions
+
+We are documenting our decisions [here](/docs/architecture/decisions)
+
+## Architecture specifics
 
 ### Foundation
-A "standard" riglet starts with a foundation:  three identical _Virtual Private Cloud_s (VPC), each 
-representing an _environment_: _integration_ testing, _staging_ and _production_.  Each VPC has separate 
-pairs of private subnets for application and database instances, with appropriate NATs and routing to 
+
+A "standard" riglet starts with a foundation:  three identical _Virtual Private Cloud_s (VPC), each
+representing an _environment_: _integration_ testing, _staging_ and _production_.  Each VPC has separate
+pairs of private subnets for application and database instances, with appropriate NATs and routing to
 give EC2 instances access to the internet.
 
-Into each VPC a number of EC2 instances is allocated:
- - a configurable number of instances to comprise the EC2 Container Service (ECS) cluster
- - a single EC2 instance running CouchDb (launched from a custom AMI)
+Into each VPC, the following are allocated:
+
+* a single EC2 instance running CouchDb (launched from a custom AMI)
+* (ECS_HOST_TYPE = ECS) a configurable number of instances to comprise the EC2 Container Service (ECS) cluster
+* (ECS_HOST_TYPE = FARGATE) ECS service/tasks spread across the private subnets
 
 An Application Load Balancer (ALB) is also configured for the VPC.  This ALB is configured at build/deployment
 time to route traffic to the appropriate system.
@@ -40,55 +132,26 @@ An SNS "operations" topic is created, with the expectation that pertinent error 
 will be published there. An email address can optionally be subscribed to this topic at foundation creation time.
 
 > Unfortunately, no such monitoring had been put in place as of this writing.  Route53 External Health Check
-> alarms were attempted, but currently such alarms can only be defined in us-east-1, and the riglet 
-> runs in us-west-2. 
-
-
-```
-
-                  +----------------+
-                  |      ALB       |
-+-----------------+                +------------------+
-|                 +----------------+                  |
-|                                                     |
-|  +---------------------+  +----------------------+  |                      +---------------+
-|  |      App Subnet     |  |      App Subnet      |  |        +-------------+   Web Build   |
-|  | +-------------------------------------------+ |  |        |             +---------------+
-|  | |  +-------+                  +-------+     +<------------+
-|  | |  |  EC2  |        E C S     |  EC2  |     | |  |           Deployments
-|  | |  +-------+                  +-------+     +<------------+
-|  | +-------------------------------------------+ |  |        |             +---------------+
-|  +---------------------+  +----------------------+  |        +-------------+   API Build   |
-|                                                     |                      +---------------+
-|  +---------------------+  +----------------------+  |
-|  |                     |  |                      |  |
-|  |      DB Subnet      |  |      DB Subnet       |  |
-|  |                     |  |                      |  |
-|  |     +---------+     |  |                      |  |
-|  |     | CouchDb |     |  |                      |  |
-|  |     |   EC2   |     |  |                      |  |
-|  |     +---------+     |  |                      |  |
-|  +---------------------+  +----------------------+  |
-|                                                     |
-+-----------------------------------------------------+
-                     Standard VPC
-    (one each for integration, staging, and production)
-```
+> alarms were attempted, but currently such alarms can only be defined in us-east-1, and the riglet
+> runs in us-west-2.
 
 ### Compute Layer
-The "compute layer" in this rig is an ECS Cluster.  ECS allows you to deploy arbitrary code in Docker images,
-and ECS handles the allocation of containers to run the images (a process known as "scheduling").
 
-The Docker containers are hosted in what ECS calls "Tasks", and the Tasks are managed by "Services".  A 
+The "compute layer" in this rig is an ECS Cluster.  ECS allows you to deploy arbitrary code in Docker images,
+and ECS handles the allocation of containers to run the images (a process known as "scheduling").  You
+can choose between creating/maintaining your own ECS Hosts (ECS_HOST_TYPE = EC2) or use FARGATE.
+
+The Docker containers are hosted in what ECS calls "Tasks", and the Tasks are managed by "Services".  A
 Task can be defined to run one or more containers.  For this riglet we've chosen to define a separate Task
-for each container (Twig and Twig API). 
+for each container (Twig and Twig API).
 
 A Service knows what version of a Task's definition is running at a given time, and how many instances
 (desired count) of the Task should be maintained.  The running Tasks are automatically allocated to
-the appropriate ECS cluster member.  Because we've chosen to have separate Task definitions for Twig 
+the appropriate ECS cluster member.  Because we've chosen to have separate Task definitions for Twig
 and Twig API, we also have Separate services for these components.
 
 ### Database Layer
+
 The "database layer" in this rig is CouchDb deployed on an EC2 instance, running in a dedicated subnet.
 The EC2 instance is created from an AMI that was created from a running CouchDb instance in the old Rig 2.0
 based riglet.  At instantiation time, a cron job is defined to back up the database files to an appropriate
@@ -97,12 +160,12 @@ S3 bucket.
 A security group is created that allows access to the CouchDb instance only from the application
 group and only over the CouchDb port.
 
-
 ### Build "Layer"
+
 OK, it's not really a "layer", but the final piece of the riglet is the build pipeline.  In this case
-we use AWS CodePipeline and CodeBuild to define and execute the pipeline.  Builds are triggered by
-changes to either the source code of the application(s) or by changes to the Cfn templates that define
-how applications are deployed.
+we use AWS CodePipeline and CodeBuild to define and execute the pipelines.  Build pipelines are triggered by
+changes to the source code of the application(s).  Deploy pipelines are triggered by new builds and/or
+changes to the Cfn templates that define how applications are deployed.
 
 Speaking of application deployments, those are also accomplished using Cfn, but the creation of the
 application Cfn stacks is automated in the build pipelines.  (_Note:_  one will seldom, if ever, create
@@ -111,235 +174,293 @@ testing environment with selected Docker images deployed.)
 
 An SNS "build" topic is created, and the build pipeline is configured to publish CodeBuild success/failure
 messages there. An email address can optionally be subscribed to this topic at foundation creation time.
-  
+
+---
 
 ## Setup
-This setup will create a CloudFormation, AWS CodePipeline/CodeBuild/CodeDeploy powered Rig on AWS.
+
+_Please read through and understand these instructions before starting_.  There is a lot of automation, but there are also _a lot_ of details.
+Approaching things incorrectly can result in a non-running riglet that can be tricky to debug if you're not well-versed in the details.
+
+### Assumptions
+
+Those executing these instructions must have basic-to-intermediate knowledge of the following:
+
+* *nix command-line and utilities such as 'curl'
+* *nix package installation
+* AWS console navigation (there's a lot of it)
+* AWS CLI (there's some of it)
+* AWS services (CloudFormation, EC2, ECS, S3).
+* It is especially important to have some understanding of the ECS service.  
+  _It might be a good idea to run through an ECS tutorial before setting up this riglet._
 
 ### Dependencies
 
-To follow these instructions you'll need:
+To complete these instructions successfully you'll need:
 
-* The AWS CLI, and working credentials: `brew install awscli && aws configure`
-* Setup `.make` for local settings
+* AWS CLI (v1.11.57 minimum), and credentials working: `brew install awscli && aws configure`.
+  * If you're going to configure a Slack Webhook and you're on AWS CLI 1.x, ensure this setting in your `~/.aws/config` file.
 
-This can either be done by copying settings from the template `.make.example`
-and save in a new file `.make`:
+    ``` ini
+    # ~/.aws/config
+    [default]
+    cli_follow_urlparam = false
+    ```
 
-```ini
-DOMAIN = <Domain to use for Foundation>
-KEY_NAME = <Existing EC2 SSH key name>
-OWNER = <The owner of the stack, either personal or corporate>
-PROFILE = <AWS CLI Profile Name (most likely "default", unless you've customized)>
-PROJECT = <Project Name>
-REGION = <AWS Region>
-REPO_TOKEN = <Github OAuth or Personal Access Token>
-CERT_ARN = <unique ID of TLS certificate defined in AWS Certificate manager>
-```
+* The `jq` utility, which is used often to interpret JSON responses from the AWS CLI: `brew install jq`.
+* Ensure that you have your own private key pair setup on AWS - the name of the key will be used in the SSM parameter setup. See [here](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#having-ec2-create-your-key-pair) for instructions.
 
-Or also done interactively through `make .make`.
+### Creating a new Riglet
 
-For the "real" twig riglet:
+#### Setting up your `.make` file
 
-```ini
-DOMAIN = buildit.tools
-KEY_NAME = buildit-twig-ssh-keypair-us-east-1 (example: actual is dependent upon actual riglet/region)
-OWNER = buildit
-PROFILE = default (or whatever your configured profile is named)
-PROJECT = twig
-REGION = us-west-2
-REPO_TOKEN = <ask a team member>
-CERT_ARN = <unique ID of buildit.tools TLS certificate in us-west-2>
-```
+This rig flavor uses `make` (yes, you read that right) to automate the creation of riglets.  Thus,
+it is _super-important_ to get your `.make` file set up properly.  You can either do this via an
+automated setup, or by doing some file manipulation.
 
-Confirm everything is valid with `make check-env`
+##### Automated setup (recommended for first-timers)
 
-### Firing it up
+1. Setup minimal `.make` for local settings interactively through `make .make`.
+1. Confirm everything is valid with `make check-env`!
+1. Continue below to fire up your riglet.
 
-#### Make
-Yes, Make.  Make is used to create, update, and delete riglets.  Get used to it.  To see all the available
-Make targets type `make` with no arguments.
+See [.make file Expert mode](#.make-file-expert-mode) for additional details.
 
-#### Feeling Lucky?  Uber-Scripts!
-There are a couple of scripts that fully automate the detailed steps found further down.  They hide the
+#### Riglet Creation and Tear-down
+
+There are a couple of scripts that automate the detailed steps covered further down.  They hide the
 details, which is both a good and bad thing.
 
-* `./create-standard-riglet.sh [branch name]` to create a full riglet with standard environments (integration/staging/production).
-* `./delete-standard-riglet.sh [branch name]` to delete it all.  Note that you must delete your ECR images first.
+* `./create-standard-riglet.sh` to create a full riglet with standard environments (integration/staging/production).
+  
+  You will be asked some questions, the answers of which populate parameters in AWS' SSM Param Store. _Please take special note of the following_:
+  * You will need a personal Github repo token.  Please see <http://tinyurl.com/yb5lxtr6>
+  * There are special cases to take into account, so _pay close attention to the prompts_.  
+    * KEY_NAME - EC2 SSH key name (your side of an AWS-generated key pair for the region you'll run in)
+    * DOMAIN - Domain to use for Foundation (e.g. "buildit.tools")
+    * DOMAIN_CERT - AWS Certification Manager GUID ("fea015e0-49a5-44b9-8c07-d78b1e942b85" is already created for buildit.tools in us-east-1 and is your best starting point)
+    * (optional) EMAIL_ADDRESS - email address to which build notifications are sent.
+      > If not included, no notifications are sent.  Be aware of this when issuing `make create-update` commands on existing stacks!
+    * (optional) SLACK_WEBHOOK - a slack URL to which build notifications are sent.
+      > If not included, no notifications are sent.  Be aware of this when issuing `make create-update` commands on existing stacks!
+    * REPO_TOKEN - personal Github repo token (instructions above)
+    * ECS_HOST_TYPE - the ECS hosting type (`EC2` or `FARGATE`)
+    * DB_TYPE - the Database type - `couch` required
+    * (required if DB_TYPE = aurora) DB_NAME - the Database name
+    * (required if DB_TYPE = aurora) DB_HOST_TYPE - the hosting type (`provisioned` or `serverless`)
+    * (required if DB_TYPE = aurora) DB_MASTER_PASSWORD - the master password (per environment)
 
-#### Individual Makefile Targets
-If you're not feeling particularly lucky, or you want to understand how things are assembled, or 
-create a custom environment, or what-have-you, follow this guide.
+* `make protect-riglet` to protect a running riglet (the Cfn stacks, anyway) from unintended deletion (`un-protect-riglet` to reverse.)
+* `./delete-standard-riglet.sh` to delete it all.
 
-##### Building it up
-The full build pipeline requires at least integration, staging, and production environments, so the typical
-installation is:
+See [Individual Makefile Targets](#building-using-individual-makefile-targets) if you want to build up a riglet by hand.
 
-###### Execution/runtime Infrastructure and Environments
-* Run `make create-foundation ENV=integration`
-  * (optional) EMAIL_ADDRESS_OPS for ops notifications
-* Run `make create-compute ENV=integration`
-* Run `make create-db ENV=integration`
-* Run `make create-foundation ENV=staging`
-  * (optional) EMAIL_ADDRESS_OPS for ops notifications
-* Run `make create-compute ENV=staging`
-* Run `make create-db ENV=staging`
-* Run `make create-foundation ENV=production`
-  * (optional) EMAIL_ADDRESS_OPS for ops notifications
-* Run `make create-compute ENV=production`
-* Run `make create-db ENV=production`
+See [Manually Tearing Down a Riglet](#manually-tearing-down-a-riglet) if you want to tear down by hand.
 
+#### Checking on things
 
-###### Build "Environments"
-In this case there's no real "build environment", unless you want to consider AWS services an environment.
-We are using CodePipeline and CodeBuild, which are build _managed services_ run by Amazon (think Jenkins in 
-the cloud, sort-of).  So what we're doing in this step is creating the build pipeline(s) for our code repo(s).
-
-* Run `make create-build REPO=<repo_name> REPO_BRANCH=<branch> CONTAINER_PORT=<port> HEALTH_CHECK_PATH=<path> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
-  * REPO is the repo that hangs off buildit organization (e.g "twig-api")
-  * REPO_BRANCH is the branch name for the repo - MUST NOT CONTAIN SLASHES!
-  * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
-  * HEALTH_CHECK_PATH is the path that is checked by the target group to determine health of the container (e.g. `/ping`)
-  * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
-  * (optional) EMAIL_ADDRESS_BUILD for build notifications
-  * (optional) PREFIX is what goes in front of the URI of the application.  Defaults to OWNER but for the "real" riglet should be set to blank (e.g. `PREFIX=`)
-
-###### Deployed Applications
-It gets a little weird here.  You never start an application yourself in this riglet.  The build environments 
-actually dynamically create "app" stacks in CloudFormation as part of a successful build.  These app stacks 
-represent deployed and running code (they basically map to ECS Services and TaskDefinitions).
-
-
-##### Tearing it down
-
-To delete a running riglet, in order:
-
-* Run `make delete-app ENV=<environment> REPO=<repo_name> REPO_BRANCH=<branch>` to delete any running App stacks.
-  > If for some reason you deleted the pipeline first, you'll find you can't delete the app stacks because 
-  > the role under which they were created was deleted with the pipeline. In this case you'll have to create 
-  > a temporary "god role" (holding the AWS-maintained AdministratorAccess policy) and manually delete the app via 
-  > the `aws cloudformation delete-stack` command, supplying the `--role-arn` override with your temporary role.
-* Run `make delete-build REPO=<repo_name> REPO_BRANCH=<branch>` to delete the Pipline stack.
-* Run `make delete-db ENV=<environment>` to delete the Database stack.
-* Run `make delete-compute ENV=<environment>` to delete the Compute stack.
-* Run `make delete-foundation ENV=<environment>` to delete the Foundation stack.
-* Run `make delete-deps ENV=<environment>` to delete the required S3 buckets.
-
-
-### Checking on things
+* Watch things happen in the CloudFormation console and elsewhere in AWS, or ...
 * Check the outputs of the activities above with `make outputs-foundation ENV=<environment>`
 * Check the status of the activities above with `make status-foundation ENV=<environment>`
-* Check AWS CloudWatch Logs for application logs.  In the Log Group Filter box search 
-  for for <owner>-<application> (at a minimum).  You can then drill down on the appropriate
-  log group and individual log streams.
 
-## Environment specifics
+And ...
+
+* Check AWS CloudWatch Logs for application logs.  In the Log Group Filter box search
+  for for `<owner>-<application>` (at a minimum).  You can then drill down on the appropriate
+  log group and individual log streams.
+* Check that applications have successfully deployed - AWS -> CloudFormation -> Select your application or
+  API stack, and view the URLs available under "Outputs", e.g. for the API application `https://OWNER-integration-APPLICAIONNAME.buildit.tools/ping`
+  where OWNER is the Owner name as specified in the .make file and APPLICATIONNAME is the REPO name as specified during app build creation (`make create-build REPO=...`).
+
+---
+
+## Additional Tech Details
+
+### Environment specifics
+
 For simplicity's sake, the templates don't currently allow a lot of flexibility in network CIDR ranges.
-The assumption at this point is that these VPCs are self-contained and "sealed off" and thus don't need 
+The assumption at this point is that these VPCs are self-contained and "sealed off" and thus don't need
 to communicate with each other, thus no peering is needed and CIDR overlaps are fine.
 
 Obviously, the templates can be updated if necessary.
 
-| Environment  | CidrBlock |
-| :---         | :---      |
-| integration  | 10.10.0.0/16  |
-| staging      | 10.20.0.0/16  |
-| production   | 10.30.0.0/16  |
+| Environment    | CidrBlock      | Public Subnets (Multi AZ) | Private Subnets (Multi AZ) |
+| :------------- | :------------- | :-------------            | :-------------             |
+| integration    | 10.1.0.0/16    | 10.1.1.0/24,10.1.2.0/24   | 10.1.11.0/24,10.1.12.0/24  |
+| staging        | 10.2.0.0/16    | 10.2.1.0/24,10.2.2.0/24   | 10.2.11.0/24,10.2.12.0/24  |
+| production     | 10.3.0.0/16    | 10.3.1.0/24,10.3.2.0/24   | 10.3.11.0/24,10.3.12.0/24  |
 
-## Application specifics
+### Database specifics
 
-| Application | ContainerPort | ListenerRulePriority | HealthCheckPath | ContainerMemory 
-| :---        | :---          | :---                 | :---            | :---          
-| twig-api    | 3000          | 100                  | '/ping'         | 512 (lowest for FARGATE)
-| twig        | 80            | 200                  | '/'             | 512 (lowest for FARGATE)
+#### CouchDB
 
+| Environment    | DB URI (internal to VPC)          | DB Subnets (Private, SingleAZ) |
+| :------------- | :-------------                    | :-------------                 |
+| integration    | <http://couch.twig.internal:5984> | 10.1.110.0/24                  |
+| staging        | <http://couch.twig.internal:5984> | 10.2.110.0/24                  |
+| production     | <http://couch.twig.internal:5984> | 10.3.110.0/24                  |
 
-## Maintenance
-### Logging
-ECS is automatically configured to capture application logs in CloudWatch Logs.  The logs are accessible
-in the AWS Console or with the CLI.  The log groups for the applications are named following the same
-convention as other stack resources, e.g. `buildit-twig-production-app-twig-api-master`.
+### Twig Application specifics
 
-### Updating the environments
-Except in very unlikely and unusual circumstances _all infrastructure/build changes should be made via CloudFormation 
-updates_ either by submitting template file changes via the appropriate make command, or by changing parameters in
-the existing CloudFormation stacks using the console.  Failure to do so will cause the running environment(s) to diverge 
-from the as-declared CloudFormation resources and may (will) make it impossible to do updates in 
-the future via CloudFormation.
+| Application | ContainerPort | ListenerRulePriority | HealthCheckPath | ContainerMemory |
+| :---        | :---          | :---                 | :---            | :---            |
+| twig-api    | 3000          | 100                  | '/ping'         | 512 (default)   |
+| twig        | 80            | 200                  | '/' (default)   | 512 (default)   |
 
-> An alternative to immediate execution of stack updates in the CloudFormation console is to use the "change set" 
-> feature. This creates a pending update to the CloudFormation stack that can be executed immediately, or go through an 
-> approval process.  This is a safe way to preview the "blast radius" of planned changes, too before committing.
+---
 
-### Updating ECS AMIs
-The ECS cluster runs Amazon-supplied AMIs.  The AMIs are captured in a map in the `compute-ecs/main.yaml`
-template.  Occasionally, Amazon releases newer AMIs and marks existing instances as out-of-date in the
-ECS console.  To update to the latest set of AMIs, run the `./cloudformation/scripts/ecs-optimized-ami.sh`
-script and copy the results into the `compute-ecs/main.yaml` template's `AWSRegionToAMI` mapping. 
+## Scaling
 
-### Debugging and/or Database Maintenance
-Rarely, it might be necessary to access EC2 internals to either debug
-
-### Scaling
-There are a few scaling "knobs" that can be twisted in running stacks, using CloudFormation console.  
-Conservative defaults are established in the templates, but the values can (and should) be updated 
+There are a few scaling "knobs" that can be twisted in running stacks, using CloudFormation console.
+Conservative defaults are established in the templates, but the values can (and should) be updated
 in specific running riglets later.
 
-For example, production ECS should probably be scaled up, at least horizontally, if only for high availability, 
-so increasing the number of cluster instances to at least 2 (and arguably 4) is probably a good idea.
- 
-Also, running a number of ECS Tasks for each of twig-api and twig (web) is important.  ECS automatically 
-distributes the Tasks to the ECS cluster instances.
+For example, production ECS should probably be scaled out horizontally, if only for high availability,
+so increasing the number of ECS Tasks for each application.  ECS automatically distributes the Tasks
+to the ECS cluster instances.
 
-> Note that desired task counts are currently actually hard-coded to reasonable per-environment defaults
-> in a mapping in the deployment-pipeline.yaml file.  This is not great, but is a side-effect
-> of using the CloudFormation provider in CodePipeline to deploy the Services.  To change these allocations
-> change the template and use `make update-build` to have the scaling occur.
-
-> On the to-do list is to implement ECS cluster auto-scaling (based, say, on load), as well as Task scaling
-> (based, say, on experiencing 500 errors).
-
-The same goes for the CouchDB instance, but in this case the only scaling option is vertical:  give it
-a larger box.  Note that a resize of the instance type does not result in any lost data.
-
-Most of these scaling changes can be made in the CloudFormation console.  To make changes find the appropriate stack, 
-select it, choose "update", and specify "use current template".  On the resulting parameters page make appropriate 
+The above changes can be made in the CloudFormation console.  To make changes find the appropriate stack,
+select it, choose "update", and specify "use current template".  On the resulting parameters page make appropriate
 changes and submit.
 
-It's a good idea to always pause on the final submission page to see the predicted actions for your changes 
+It's a good idea to always pause on the final submission page to see the predicted actions for your changes
 before proceeding, or consider using a Change Set.
 
-#### Application Scaling Parameters
+### Application Scaling Parameters
 
-| Parameter                    | Scaling Style | Stack                      | Parameter  
-| :---                         | :---          | :---                       | :---
-| # of ECS cluster instances   | Horizontal    | compute-ecs                | ClusterSize/ClusterMaxSize
-| Size of ECS Hosts            | Vertical      | compute-ecs                | InstanceType    |
+#### ECS (EC2 or Fargate)
 
+| Parameter                    | Scaling Style | Stack                      | Parameter                    |
+| :---                         | :---          | :---                       | :---                         |
+| Number of Tasks              | Horizontal    | app (once created by build)| TaskDesiredCount             |
+| Task CPU/Memory              | Vertical      | app (once created by build)| ContainerCpu/ContainerMemory |
 
-#### Database Scaling Parameters
-And here are the available *database* scaling parameters.  
- 
-| Parameter             | Scaling Style | Stack         | Parameter  
-| :---                  | :---          | :---          | :---
+### Database Scaling Parameters
+
+And here are the available *database* scaling parameters.
+
+#### CouchDB scaling
+
+The only scaling option is vertical:  give it a larger box.  Note that a resize of the instance type
+does not result in any lost data.
+
+| Parameter             | Scaling Style | Stack         | Parameter     |
+| :---                  | :---          | :---          | :---          |
 | Size of Couch Host    | Vertical      | db-couch      | InstanceType  |
 
+---
 
-## Deployment information
+## Troubleshooting
 
-### Deployments
-* [Integration](https://builditintegration-twig-api.buildit.tools/ping)
-* [Staging](https://builditstaging-twig-api.buildit.tools/ping)
-* [Production](https://builditproduction-twig-api.buildit.tools/ping)
+There are a number of strategies to troubleshoot issues.  In addition to monitoring and searching the AWS Console and Cloudwatch Logs, you can SSH into the VPC via a Bastion:
 
-### Logging
+`make create-bastion ENV=<integration|staging|production>`
 
-* [Integration](https://console.aws.amazon.com/cloudwatch/home?region=us-west-2#logStream:group=buildit-twig-integration-app-twig-api-master)
-* [Staging](https://console.aws.amazon.com/cloudwatch/home?region=us-west-2#logStream:group=buildit-twig-staging-app-twig-api-master)
-* [Production](https://console.aws.amazon.com/cloudwatch/home?region=us-west-2#logStream:group=buildit-twig-production-app-twig-api-master)
+This will create a bastion that you can SSH into as well as open an inbound Security Group rule to allow your IP address in.  You can output the SSH command via:
 
+`make outputs-bastion ENV=<integration|staging|production>`
 
+Once inside the VPC, you can connect to any of the services you need.
 
-## Architectural Decisions
+Don't forget to tear down the Bastion when you are finished:
+`make delete-bastion ENV=<integration|staging|production>`
 
-We are documenting our decisions [here](../master/docs/architecture/decisions)
+---
+
+## Maintenance
+
+Except in very unlikely and unusual circumstances _all infrastructure/build changes should be made via CloudFormation
+updates_ either by submitting template file changes via the appropriate make command, or by changing parameters in
+the existing CloudFormation stacks using the console.  Failure to do so will cause the running environment(s) to diverge
+from the as-declared CloudFormation resources and may (will) make it impossible to do updates in
+the future via CloudFormation.
+
+> An alternative to immediate execution of stack updates in the CloudFormation console is to use the "change set"
+> feature. This creates a pending update to the CloudFormation stack that can be executed immediately, or go through an
+> approval process.  This is a safe way to preview the "blast radius" of planned changes, too before committing.
+
+### Updating ECS EC2 AMIs
+
+The ECS EC2 cluster runs Amazon-supplied AMIs.  Occasionally, Amazon releases newer AMIs and marks existing instances as
+out-of-date in the ECS console.  To update to the latest set of AMIs, update the ECSAMI parameter value in
+`cloudformation/compute-ecs/ec2-hosts.yaml`.  We don't use the `recommended` version number as that could introduce
+regressions without proper testing or notification of what has changed.
+
+## Logs
+
+We are using CloudWatch for centralized logging.  You can find the logs for each environment and application at [here](https://console.aws.amazon.com/cloudwatch/home?region=us-west-2#logs:prefix=buildit-blue)
+
+Alarms are generated when ERROR level logs occur.  They currently get sent to the #twig-notifications channel
+
+---
+
+## Appendix
+
+---
+
+### `.make` file Expert mode
+
+The `.make` file can also be created by copying `.make.example` to `.make` and making changes
+Example `.make` file with suggested values and comments (including optional values).
+
+```ini
+OWNER = <The owner of the stack>  (First initial + last name.)
+PROFILE = <AWS Profile Name> ("default" if you don't have multiple profiles).
+PROJECT = <Project Name> (e.g. "bookit")
+REGION = <AWS Region> (Whatever region you intend to run within.  Some regions don't support all resource types, so the common ones are best)
+```
+
+### Building using Individual Makefile Targets
+
+If you're not feeling particularly lucky, or you want to understand how things are assembled, or create a custom environment, or what-have-you, follow this guide.
+
+#### Building it up
+
+The full build pipeline requires at least integration, staging, and production environments, so the typical
+installation is:
+
+##### Execution/runtime Infrastructure and Environments
+
+* Run `make create-deps`.  This creates additional parameters in AWS' SSM Param Store.  Please take special note of the following:
+  * You will need a personal Github repo token.  Please see <http://tinyurl.com/yb5lxtr6>
+  * There are special cases to take into account, so _pay close attention to the prompts_.
+* Run `make create-environment ENV=integration` (runs `create-foundation`, `create-compute`, `create-db`)
+* Run `make create-environment ENV=staging`
+* Run `make create-environment ENV=production`
+
+##### Build "Environments"
+
+In this case there's no real "build environment", unless you want to consider AWS services an environment.
+We are using CodePipeline and CodeBuild, which are build _managed services_ run by Amazon (think Jenkins in
+the cloud, sort-of).  So what we're doing in this step is creating the build pipeline(s) for our code repo(s).
+
+* Run `make create-build REPO=<repo_name> CONTAINER_PORT=<port> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
+  * REPO is the repo that hangs off buildit organization (e.g "bookit-api")
+  * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
+  * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
+  * (optional) CONTAINER_MEMORY is the amount of memory (in MiB) to reserve for this application.  Defaults to 512.
+  * (optional) HEALTH_CHECK_PATH is the path that is checked by the target group to determine health of the container.  Defaults to `'/'`
+  * (optional) REPO_BRANCH is the branch name for the repo - MUST NOT CONTAIN SLASHES!
+  * (optional) SUBDOMAIN is placed in front of the DOMAIN configured in the .make file when generating ALB listener rules.  Defaults to REPO.
+
+##### Deployed Applications
+
+It gets a little weird here.  You never start an application yourself in this riglet.  The build environments
+actually dynamically create "app" stacks in CloudFormation as part of a successful build.  These app stacks
+represent deployed and running code (they basically map to ECS Services and TaskDefinitions).
+
+### Manually Tearing Down a Riglet
+
+The easiest way to tear down a riglet is by running `./delete-standard-riglet.sh`.  
+It will take a long time to execute, mostly because it deletes the riglet's S3 buckets.
+
+To manually delete a running riglet, in order:
+
+* Run `make delete-app ENV=<environment> REPO=<repo_name>` to delete any running App stacks.
+  * if for some reason you deleted the pipeline first, you'll find you can't delete the app stacks because
+    the role under which they were created was deleted with the pipeline. In this case you'll have to create
+    a temporary "god role" and manually delete the app via the `aws cloudformation delete-stack` command,
+    supplying the `--role-arn` override.
+* Run `make delete-build REPO=<repo_name> REPO_BRANCH=<branch>` to delete the Pipline stack.
+* Run `make delete-environment ENV=<environment>` to delete the Environment stack (runs `delete-db`, `delete-compute`, `delete-foundation`)
+* Run `make delete-deps` to delete the required SSM parameters.

@@ -4,13 +4,17 @@ Description: ECS Cluster
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
+  ComputeBucket:
+    Description: Compute S3 Bucket
+    Type: String
+
+  Environment:
+    Description: Stack environment
+    Type: String
+
   FoundationStackName:
     Description: Foundation stack name upon which this cluster is installed.
     Type: String
-
-  ClusterSize:
-    Type: Number
-    Default: 1
 
   ClusterMaxSize:
     Type: Number
@@ -18,75 +22,41 @@ Parameters:
 
   InstanceType:
     Type: String
-    Default: t2.small
+    Default: t3.small
     AllowedValues:
+      - t3.nano
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - t2.nano
+      - t2.micro
       - t2.small
       - t2.medium
       - t2.large
       - t2.xlarge
+      - t2.2xlarge
 
   SshKeyName:
     Type: AWS::EC2::KeyPair::KeyName
 
+  EcsHostType:
+    Type: AWS::SSM::Parameter::Value<String>
 
-Mappings:
-  AWSRegionToAMI:
-    us-east-2:
-      AMI: ami-34032e51
-    us-east-1:
-      AMI: ami-ec33cc96
-    us-west-2:
-      AMI: ami-29f80351
-    us-west-1:
-      AMI: ami-d5d0e0b5
-    eu-west-2:
-      AMI: ami-eb62708f
-    eu-west-1:
-      AMI: ami-13f7226a
-    eu-central-1:
-      AMI: ami-40d5672f
-    ap-northeast-2:
-      AMI: ami-7ee13b10
-    ap-northeast-1:
-      AMI: ami-21815747
-    ap-southeast-2:
-      AMI: ami-4f08e82d
-    ap-southeast-1:
-      AMI: ami-99f588fa
-    ca-central-1:
-      AMI: ami-9b54edff
+Conditions:
+  CreateEcsEc2Hosts: !Equals [ !Ref EcsHostType, EC2 ]
 
 Resources:
-  ECSRole:
-    Type: AWS::IAM::Role
-    Properties:
-      Path: /
-      AssumeRolePolicyDocument: |
-        {
-            "Statement": [{
-                "Effect": "Allow",
-                "Principal": { "Service": [ "ec2.amazonaws.com" ]},
-                "Action": [ "sts:AssumeRole" ]
-            }]
-        }
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
-
-  InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Path: /
-      Roles:
-        - !Ref ECSRole
-
   SecurityGroup:
-    Type: "AWS::EC2::SecurityGroup"
+    Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: !Sub ${AWS::StackName}-hosts
       SecurityGroupIngress:
         - SourceSecurityGroupId:
             Fn::ImportValue: !Sub "${FoundationStackName}--ALB--SG"
-          IpProtocol: -1
+          IpProtocol: '-1'
       VpcId:
         Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
 
@@ -95,75 +65,20 @@ Resources:
     Properties:
       ClusterName: !Sub ${AWS::StackName}-ECSCluster
 
-  AutoScalingGroup:
-    Type: AWS::AutoScaling::AutoScalingGroup
+  EcsEc2Hosts:
+    Condition: CreateEcsEc2Hosts
+    Type: AWS::CloudFormation::Stack
     Properties:
-      VPCZoneIdentifier:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateA"
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateB"
-      LaunchConfigurationName: !Ref LaunchConfiguration
-      MinSize: !Ref ClusterSize
-      MaxSize: !Ref ClusterMaxSize
-      DesiredCapacity: !Ref ClusterSize
-      Tags:
-        - Key: Name
-          Value: !Sub ${FoundationStackName}--ECSHost
-          PropagateAtLaunch: true
-    CreationPolicy:
-      ResourceSignal:
-        Timeout: PT15M
-    UpdatePolicy:
-      AutoScalingRollingUpdate:
-        MinInstancesInService: 1
-        MaxBatchSize: 1
-        PauseTime: PT15M
-        WaitOnResourceSignals: true
-
-  LaunchConfiguration:
-    Type: AWS::AutoScaling::LaunchConfiguration
-    Metadata:
-      AWS::CloudFormation::Init:
-        config:
-          commands:
-            01_add_instance_to_cluster:
-                command: !Sub echo ECS_CLUSTER=${Cluster} > /etc/ecs/ecs.config
-          files:
-            "/etc/cfn/cfn-hup.conf":
-              mode: 000400
-              owner: root
-              group: root
-              content: !Sub |
-                [main]
-                stack=${AWS::StackId}
-                region=${AWS::Region}
-            "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
-              content: !Sub |
-                [cfn-auto-reloader-hook]
-                triggers=post.update
-                path=Resources.ContainerInstances.Metadata.AWS::CloudFormation::Init
-                action=/opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource LaunchConfiguration
-          services:
-            sysvinit:
-              cfn-hup:
-                enabled: true
-                ensureRunning: true
-                files:
-                  - /etc/cfn/cfn-hup.conf
-                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
-    Properties:
-      ImageId: !FindInMap [ AWSRegionToAMI, !Ref "AWS::Region", AMI ]
-      InstanceType: !Ref InstanceType
-      KeyName: !Ref SshKeyName
-      IamInstanceProfile: !Ref InstanceProfile
-      SecurityGroups:
-        - !Ref SecurityGroup
-      UserData:
-        "Fn::Base64": !Sub |
-          #!/bin/bash
-          yum install -y aws-cfn-bootstrap
-          /opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource LaunchConfiguration
-          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource AutoScalingGroup
-
+      Parameters:
+        Environment: !Ref Environment
+        FoundationStackName: !Ref FoundationStackName
+        ClusterName: !Ref Cluster
+        SecurityGroup: !GetAtt SecurityGroup.GroupId
+        ClusterMaxSize: !Ref ClusterMaxSize
+        InstanceType: !Ref InstanceType
+        SshKeyName: !Ref SshKeyName
+      TemplateURL: !Sub https://s3.amazonaws.com/${ComputeBucket}/templates/ec2-hosts.yaml
+      TimeoutInMinutes: 60
 
 Outputs:
   ClusterName:
@@ -174,5 +89,3 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}--AppSecurityGroup"
     Value: !Ref SecurityGroup
-  AutoScalingGroup:
-    Value: !Ref AutoScalingGroup
