@@ -23,6 +23,7 @@ SSM settings.  You can find the details under `/buildit-blue/twig` on the [AWS S
 ```
 
 Application specifics (for `create-build` and/or `update-build` targets)
+
 | Application | ContainerPort | ListenerRulePriority | HealthCheckPath | ContainerMemory |
 | :---        | :---          | :---                 | :---            | :---            |
 | twig-api    | 3000          | 100                  | '/ping'         | 512 (default)   |
