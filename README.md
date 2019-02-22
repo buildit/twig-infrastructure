@@ -57,7 +57,9 @@ The major components of this riglet are:
   * a VPC with the appropriate network elements (gateways, NAT)
   * a shared Application Load Balancer (ALB) - listens on ports 80 & 443
   * a shared EC2 Container Server (ECS) Cluster (using either EC2 hosts or Fargate).
+    * `buildit-blue` riglet uses FARGATE
   * (optional) an RDS Aurora or CouchDB Database
+    * Twig uses CouchDB
   * 4 shared S3 buckets to store CloudFormation templates and scripts
     * a "foundation" bucket to store templates associated w/ the foundational stack
     * a "build" bucket to store build artifacts for the CodePipeline below (this is shared across all pipelines)
